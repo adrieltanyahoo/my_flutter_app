@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 void main() {
   runApp(const MyApp());
@@ -11,7 +12,8 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'WorkApp',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         // This is the theme of your application.
         //
@@ -28,9 +30,40 @@ class MyApp extends StatelessWidget {
         //
         // This works for code too, not just values: Most code changes can be
         // tested with just a hot reload.
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+        useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const SplashPage(),
+    );
+  }
+}
+
+class SplashPage extends StatelessWidget {
+  const SplashPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20.0),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                'WorkApp',
+                style: GoogleFonts.montserrat(
+                  fontSize: 42,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: 3.3,
+                  color: Colors.black,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
