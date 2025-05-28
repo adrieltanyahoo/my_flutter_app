@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "166902517179",
+    "project_id": "workatonflutter",
+    "storage_bucket": "workatonflutter.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:166902517179:android:4eaca37e2cc9e25902889e",
+        "android_client_info": {
+          "package_name": "com.workaton.workaton"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB-fnn_QINfoRGrdSJzUONVn4ZhPXiRmJY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
