@@ -21,6 +21,10 @@ class _SplashPageState extends State<SplashPage> {
   String _selectedLanguage = 'English';
 
   Future<String> fetchCountryCode() async {
+    if (kDebugMode) {
+      print('\n🔍 Starting country code detection in splash page...');
+    }
+
     final prefs = await SharedPreferences.getInstance();
     final cachedCountry = prefs.getString('cached_country_code');
     final lastFetch = prefs.getInt('cached_country_timestamp') ?? 0;
@@ -29,86 +33,73 @@ class _SplashPageState extends State<SplashPage> {
     // Use cache if less than 24h old
     if (cachedCountry != null && (now - lastFetch) < 86400000) {
       if (kDebugMode) {
-        print('Using cached country code: $cachedCountry');
+        print('📱 Using cached country code: $cachedCountry');
+        print('   • Last fetched: ${DateTime.fromMillisecondsSinceEpoch(lastFetch)}');
       }
       return cachedCountry;
     }
 
     try {
       if (kDebugMode) {
-        print('🌍 Starting country detection...');
+        print('📡 Attempting to call ipapi.co...');
       }
 
-      // Try a different endpoint from ipapi.co
+      // Using ipapi.co service
       final apiUrl = 'https://ipapi.co/country';
-      if (kDebugMode) {
-        print('📡 Making request to: $apiUrl');
-      }
-
       final response = await http.get(
         Uri.parse(apiUrl),
         headers: {
           'User-Agent': 'WorkApp/1.0',
           'Accept': 'text/plain',
         },
-      ).timeout(
-        const Duration(seconds: 5),
-        onTimeout: () {
-          if (kDebugMode) {
-            print('⚠️ API request timed out after 5 seconds');
-          }
-          throw TimeoutException('IP API request timed out');
-        },
-      );
+      ).timeout(const Duration(seconds: 5));
 
       if (kDebugMode) {
-        print('📥 Response Status: ${response.statusCode}');
-        print('📥 Response Headers: ${response.headers}');
-        print('📥 Response Body: ${response.body}');
+        print('\n📥 Response from ipapi.co:');
+        print('   • Status Code: ${response.statusCode}');
+        print('   • Response Body: "${response.body}"');
+        print('   • Headers: ${response.headers}');
       }
 
       if (response.statusCode == 200) {
         final countryCode = response.body.trim();
         if (countryCode.length == 2) {  // Valid 2-letter country code
           if (kDebugMode) {
-            print('✅ Country detected from IP: $countryCode');
+            print('✅ Successfully detected country: $countryCode');
           }
           await prefs.setString('cached_country_code', countryCode);
           await prefs.setInt('cached_country_timestamp', now);
           return countryCode;
         } else {
           if (kDebugMode) {
-            print('❌ Invalid country code received: $countryCode');
+            print('⚠️ Invalid country code format received: "$countryCode"');
           }
         }
       } else {
         if (kDebugMode) {
-          print('❌ API request failed with status: ${response.statusCode}');
-          print('❌ Error response: ${response.body}');
+          print('❌ Unexpected status code: ${response.statusCode}');
+          print('   • Response body: ${response.body}');
         }
       }
     } catch (e, stackTrace) {
       if (kDebugMode) {
-        print('❌ Error in country detection:');
-        print('Error type: ${e.runtimeType}');
-        print('Error message: $e');
-        print('Stack trace: $stackTrace');
+        print('\n❌ Error in country detection:');
+        print('   • Error type: ${e.runtimeType}');
+        print('   • Error message: $e');
+        print('   • Stack trace: $stackTrace');
       }
     }
 
-    // Fallback to device locale
-    if (kDebugMode) {
-      print('🔄 Falling back to device locale...');
-    }
+    // Device Locale Fallback
     final localeCountryCode = ui.window.locale.countryCode;
     if (localeCountryCode != null) {
       if (kDebugMode) {
-        print('✅ Country detected from locale: $localeCountryCode');
+        print('📱 Falling back to device locale: $localeCountryCode');
       }
       return localeCountryCode;
     }
 
-    // Final fallback
+    // Final Fallback
     if (kDebugMode) {
       print('⚠️ All detection methods failed, using US as fallback');
     }

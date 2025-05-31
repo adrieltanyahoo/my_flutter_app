@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'dart:ui' as ui;
-import 'dart:io' show Platform;
+import 'dart:async';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:intl_phone_number_input/intl_phone_number_input.dart';
-import 'package:intl/intl.dart';
+import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:flutter/foundation.dart';
-import 'package:network_info_plus/network_info_plus.dart';
+import 'package:pin_code_fields/pin_code_fields.dart';
+import 'otp_page.dart';
+
+// Enum must be at the top level, not inside any class
+enum LoadingState { idle, sendingCode, verifyingCode }
 
 class PhoneAuthPage extends StatefulWidget {
   const PhoneAuthPage({super.key});
@@ -16,14 +19,39 @@ class PhoneAuthPage extends StatefulWidget {
 }
 
 class _PhoneAuthPageState extends State<PhoneAuthPage> {
-  final TextEditingController controller = TextEditingController();
+  // Controllers
+  final TextEditingController _phoneController = TextEditingController();
+  
+  // Firebase
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  String? verificationId;
-  bool isLoading = false;
-  bool showOTP = false;
-  String? errorMessage;
-  late PhoneNumber number;
-  final NetworkInfo networkInfo = NetworkInfo();
+  String _verificationId = '';
+  String _completePhoneNumber = '';
+  bool _isLoading = false;
+  String _errorMessage = '';
+  
+  // UI States
+  
+  // Loading States
+  LoadingState _loadingState = LoadingState.idle;
+  bool get isLoading => _loadingState != LoadingState.idle;
+  
+  // Timer for resend OTP
+  Timer? _timer;
+  int _remainingTime = 0;
+  bool _canResendOTP = false;
+  
+  // Rate limiting
+  DateTime? _lastVerificationAttempt;
+  static const _minimumVerificationInterval = Duration(minutes: 1);
+  
+  // Consistent styling
+  late final TextStyle montserratStyle;
+  
+  // Add these state variables at the top with other state declarations
+  bool _isInitialized = false;
+  User? _currentUser;
+  String _detectedCountryCode = 'US';
+  String _e164PhoneNumber = '';
 
   @override
   void initState() {
@@ -31,6 +59,13 @@ class _PhoneAuthPageState extends State<PhoneAuthPage> {
     if (kDebugMode) {
       print('🚀 PhoneAuthPage initialized');
     }
+    // Initialize states
+    _remainingTime = 0;
+    _canResendOTP = false;
+    montserratStyle = GoogleFonts.montserrat();
+    
+    // Check for existing auth state
+    _checkAuthState();
   }
 
   @override
@@ -42,93 +77,175 @@ class _PhoneAuthPageState extends State<PhoneAuthPage> {
   Future<void> initializePhoneNumber() async {
     String countryCode;
     try {
-      // Get the country code from route arguments, passed from SplashPage
       final args = ModalRoute.of(context)?.settings.arguments as String?;
-      countryCode = args ?? 'US';
+      countryCode = args ?? 'US';  // Default to US if no country code is passed
       if (kDebugMode) {
-        print('📱 Phone Auth Page - Received country code: $countryCode');
+        print('📱 Phone Auth Page - Initializing with country code: $countryCode');
       }
     } catch (e) {
       if (kDebugMode) {
         print('❌ Phone Auth Page - Error getting country code: $e');
         print('   Falling back to US');
       }
-      countryCode = 'US';
+      countryCode = 'US';  // Default to US if all else fails
     }
-    
-    if (kDebugMode) {
-      print('🔄 Initializing phone number with country code: $countryCode');
-    }
-    
-    setState(() {
-      number = PhoneNumber(isoCode: countryCode);
-    });
-
-    if (kDebugMode) {
-      print('✅ Phone number initialized with:');
-      print('   ISO Code: ${number.isoCode}');
-      print('   Dial Code: ${number.dialCode}');
+    if (mounted) {
+      setState(() {
+        _detectedCountryCode = countryCode;
+        _completePhoneNumber = '';
+        _errorMessage = '';
+      });
     }
   }
 
-  Future<void> verifyPhone() async {
+  void startResendOTPTimer() {
     setState(() {
-      isLoading = true;
-      errorMessage = null;
+      _remainingTime = 60;
+      _canResendOTP = false;
     });
 
-    try {
-      if (kDebugMode) {
-        print('Attempting to verify phone number: ${number.phoneNumber}');
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_remainingTime == 0) {
+        timer.cancel();
+        setState(() {
+          _canResendOTP = true;
+        });
+      } else {
+        setState(() {
+          _remainingTime--;
+        });
       }
+    });
+  }
 
-      await _auth.verifyPhoneNumber(
-        phoneNumber: number.phoneNumber,
-        verificationCompleted: (PhoneAuthCredential credential) async {
-          if (kDebugMode) {
-            print('Auto verification completed');
-          }
-          await _auth.signInWithCredential(credential);
-          // Handle successful verification
-        },
-        verificationFailed: (FirebaseAuthException e) {
-          if (kDebugMode) {
-            print('Verification failed: ${e.message}');
-          }
-          setState(() {
-            isLoading = false;
-            errorMessage = e.message;
-          });
-        },
-        codeSent: (String vId, int? resendToken) {
-          if (kDebugMode) {
-            print('Verification code sent');
-          }
-          setState(() {
-            verificationId = vId;
-            showOTP = true;
-            isLoading = false;
-          });
-        },
-        codeAutoRetrievalTimeout: (String vId) {
-          if (kDebugMode) {
-            print('Auto retrieval timeout');
-          }
-          setState(() {
-            verificationId = vId;
-          });
-        },
-        timeout: const Duration(seconds: 60),
-      );
+  Future<void> _checkAuthState() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = '';
+      });
+
+      // Check if there's a current user
+      _currentUser = _auth.currentUser;
+
+      if (_currentUser != null) {
+        if (kDebugMode) {
+          print('👤 User already signed in:');
+          print('   • UID: ${_currentUser?.uid}');
+          print('   • Phone: ${_currentUser?.phoneNumber}');
+        }
+        
+        if (mounted) {
+          Navigator.pushReplacementNamed(
+            context,
+            '/permissions',
+            arguments: {
+              'uid': _currentUser?.uid,
+              'phoneNumber': _currentUser?.phoneNumber,
+            },
+          );
+        }
+      } else {
+        if (kDebugMode) {
+          print('👤 No user currently signed in');
+        }
+      }
     } catch (e) {
       if (kDebugMode) {
-        print('Error in phone verification: $e');
+        print('❌ Error checking auth state: $e');
       }
       setState(() {
-        isLoading = false;
-        errorMessage = 'Failed to verify phone number: $e';
+        _errorMessage = 'Error checking authentication state';
       });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _isInitialized = true;
+        });
+      }
     }
+  }
+
+  // Function to send OTP
+  Future<void> _sendOTP() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+    if (_e164PhoneNumber.isEmpty) {
+      setState(() {
+        _errorMessage = 'Please enter your phone number.';
+        _isLoading = false;
+      });
+      return;
+    }
+    try {
+      if (kDebugMode) {
+        await FirebaseAuth.instance.setSettings(appVerificationDisabledForTesting: true);
+      }
+      await FirebaseAuth.instance.verifyPhoneNumber(
+        phoneNumber: _e164PhoneNumber,
+        timeout: const Duration(seconds: 60),
+        verificationCompleted: (PhoneAuthCredential credential) async {
+          // Optionally handle auto-verification
+        },
+        verificationFailed: (FirebaseAuthException e) {
+          setState(() {
+            _isLoading = false;
+            _errorMessage = e.message ?? 'Verification failed. Please try again.';
+          });
+          _showSnackBar('Verification failed: ${e.message}');
+        },
+        codeSent: (String verificationId, int? resendToken) {
+          setState(() {
+            _isLoading = false;
+            _errorMessage = '';
+          });
+          _showSnackBar('OTP sent to $_e164PhoneNumber');
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => OtpPage(
+                verificationId: verificationId,
+                phoneNumber: _e164PhoneNumber,
+              ),
+            ),
+          );
+        },
+        codeAutoRetrievalTimeout: (String verificationId) {
+          setState(() {
+            _isLoading = false;
+          });
+        },
+      );
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = e.toString();
+      });
+      _showSnackBar('Error sending OTP: $e');
+    }
+  }
+
+  void _showSnackBar(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    }
+  }
+
+  void _navigateToHomeScreen() {
+    Navigator.pushReplacementNamed(context, '/messages');
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _phoneController.dispose();
+    super.dispose();
   }
 
   @override
@@ -144,7 +261,6 @@ class _PhoneAuthPageState extends State<PhoneAuthPage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 60),
-                // Branding Section
                 Text(
                   'WorkApp',
                   textAlign: TextAlign.center,
@@ -161,135 +277,53 @@ class _PhoneAuthPageState extends State<PhoneAuthPage> {
                   textAlign: TextAlign.center,
                   style: GoogleFonts.montserrat(
                     fontSize: 14,
-                    fontWeight: FontWeight.w400,
                     letterSpacing: 1.5,
                     color: Colors.black87,
                   ),
                 ),
                 const SizedBox(height: 48),
-                // Phone Input Section
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.grey[50],
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey[300]!),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                    child: InternationalPhoneNumberInput(
-                      onInputChanged: (PhoneNumber number) {
-                        if (kDebugMode) {
-                          print('📞 Phone number changed:');
-                          print('   ISO Code: ${number.isoCode}');
-                          print('   Dial Code: ${number.dialCode}');
-                          print('   Phone Number: ${number.phoneNumber}');
-                        }
-                        this.number = number;
-                      },
-                      selectorConfig: const SelectorConfig(
-                        selectorType: PhoneInputSelectorType.BOTTOM_SHEET,
-                      ),
-                      ignoreBlank: false,
-                      autoValidateMode: AutovalidateMode.onUserInteraction,
-                      selectorTextStyle: const TextStyle(
-                        color: Colors.black,
-                        fontSize: 13,
-                      ),
-                      textStyle: const TextStyle(fontSize: 13),
-                      initialValue: number,
-                      textFieldController: controller,
-                      formatInput: true,
-                      spaceBetweenSelectorAndTextField: 0,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        signed: true,
-                        decimal: true,
-                      ),
-                      inputDecoration: InputDecoration(
-                        border: InputBorder.none,
-                        hintText: 'Enter phone number here',
-                        hintStyle: TextStyle(
-                          color: Colors.grey[400],
-                          fontSize: 13,
-                        ),
-                        contentPadding: const EdgeInsets.only(left: 8, right: 8, bottom: 0),
-                      ),
+                IntlPhoneField(
+                  controller: _phoneController,
+                  initialCountryCode: _detectedCountryCode,
+                  decoration: InputDecoration(
+                    border: InputBorder.none,
+                    hintText: 'Enter phone number',
+                    hintStyle: TextStyle(
+                      color: Colors.grey[400],
+                      fontSize: 16,
                     ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   ),
+                  onChanged: (phone) {
+                    setState(() {
+                      _e164PhoneNumber = phone.completeNumber;
+                      _errorMessage = '';
+                    });
+                  },
                 ),
-                const SizedBox(height: 24),
-                // OTP Field
-                if (showOTP) ...[
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.grey[50],
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey[300]!),
-                    ),
-                    child: TextField(
-                      decoration: InputDecoration(
-                        border: InputBorder.none,
-                        hintText: 'Enter verification code',
-                        hintStyle: TextStyle(color: Colors.grey[400]),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                      ),
-                      keyboardType: TextInputType.number,
-                      onChanged: (code) {
-                        // Handle OTP input
-                      },
-                    ),
-                  ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: _isLoading ? null : _sendOTP,
+                  child: _isLoading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text('Send Code'),
+                ),
+                if (_errorMessage.isNotEmpty) ...[
                   const SizedBox(height: 24),
-                ],
-                // Error Message
-                if (errorMessage != null) ...[
                   Text(
-                    errorMessage!,
-                    style: const TextStyle(color: Colors.red, fontSize: 14),
+                    _errorMessage,
+                    style: const TextStyle(
+                      color: Colors.red,
+                      fontSize: 14,
+                    ),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 24),
                 ],
-                // Action Button
-                SizedBox(
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: isLoading ? null : verifyPhone,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green[600],
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                    ),
-                    child: isLoading
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                            ),
-                          )
-                        : Text(
-                            showOTP ? 'Verify Code' : 'SEND OTP',
-                            style: GoogleFonts.montserrat(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                  ),
-                ),
               ],
             ),
           ),
         ),
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    controller.dispose();
-    super.dispose();
   }
 } 
