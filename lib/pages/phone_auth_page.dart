@@ -52,6 +52,7 @@ class _PhoneAuthPageState extends State<PhoneAuthPage> {
   User? _currentUser;
   String _detectedCountryCode = 'US';
   String _e164PhoneNumber = '';
+  String _timeZone = 'UTC';
 
   @override
   void initState() {
@@ -71,24 +72,17 @@ class _PhoneAuthPageState extends State<PhoneAuthPage> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    initializePhoneNumber();
+    final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    if (args != null) {
+      initializePhoneNumber(args['country'] ?? 'US');
+      _timeZone = args['timeZone'] ?? 'UTC';
+    } else {
+      initializePhoneNumber('US');
+      _timeZone = 'UTC';
+    }
   }
 
-  Future<void> initializePhoneNumber() async {
-    String countryCode;
-    try {
-      final args = ModalRoute.of(context)?.settings.arguments as String?;
-      countryCode = args ?? 'US';  // Default to US if no country code is passed
-      if (kDebugMode) {
-        print('📱 Phone Auth Page - Initializing with country code: $countryCode');
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('❌ Phone Auth Page - Error getting country code: $e');
-        print('   Falling back to US');
-      }
-      countryCode = 'US';  // Default to US if all else fails
-    }
+  Future<void> initializePhoneNumber(String countryCode) async {
     if (mounted) {
       setState(() {
         _detectedCountryCode = countryCode;
@@ -119,7 +113,7 @@ class _PhoneAuthPageState extends State<PhoneAuthPage> {
     });
   }
 
-  Future<void> _checkAuthState() async {
+  void _checkAuthState() async {
     try {
       setState(() {
         _isLoading = true;
@@ -143,6 +137,7 @@ class _PhoneAuthPageState extends State<PhoneAuthPage> {
             arguments: {
               'uid': _currentUser?.uid,
               'phoneNumber': _currentUser?.phoneNumber,
+              'timeZone': _timeZone,
             },
           );
         }
@@ -294,6 +289,8 @@ class _PhoneAuthPageState extends State<PhoneAuthPage> {
                     ),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   ),
+                  style: const TextStyle(fontSize: 16),
+                  dropdownTextStyle: const TextStyle(fontSize: 16),
                   onChanged: (phone) {
                     setState(() {
                       _e164PhoneNumber = phone.completeNumber;

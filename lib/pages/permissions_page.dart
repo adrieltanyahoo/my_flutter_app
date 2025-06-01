@@ -20,7 +20,9 @@ class _PermissionsPageState extends State<PermissionsPage> {
   @override
   void initState() {
     super.initState();
-    _checkCurrentPermissions();
+    _mediaPermission = true;
+    _contactsPermission = true;
+    _notificationPermission = true;
   }
 
   @override
@@ -39,26 +41,7 @@ class _PermissionsPageState extends State<PermissionsPage> {
   }
 
   Future<void> _checkCurrentPermissions() async {
-    if (kDebugMode) {
-      print('🔍 Checking current permissions...');
-    }
-
-    final contacts = await Permission.contacts.status;
-    final photos = await Permission.photos.status;
-    final notification = await Permission.notification.status;
-
-    setState(() {
-      _contactsPermission = contacts.isGranted;
-      _mediaPermission = photos.isGranted;
-      _notificationPermission = notification.isGranted;
-    });
-
-    if (kDebugMode) {
-      print('📱 Current permission status:');
-      print('   • Contacts: ${contacts.name}');
-      print('   • Media: ${photos.name}');
-      print('   • Notifications: ${notification.name}');
-    }
+    // This function is now unused to avoid toggles being reset to false
   }
 
   Future<void> _requestPermissions() async {
@@ -98,7 +81,10 @@ class _PermissionsPageState extends State<PermissionsPage> {
         Navigator.pushReplacementNamed(
           context,
           '/profile-setup',
-          arguments: _userDetails,
+          arguments: {
+            'phoneNumber': _userDetails?['phoneNumber'],
+            'timeZone': _userDetails?['timeZone'],
+          },
         );
       }
     } catch (e) {
@@ -145,7 +131,7 @@ class _PermissionsPageState extends State<PermissionsPage> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Please enable the following permissions to use all features of the app',
+                  'Enable permissions so that Workaton can provide you a better service and experience.',
                   textAlign: TextAlign.center,
                   style: GoogleFonts.montserrat(
                     fontSize: 14,
