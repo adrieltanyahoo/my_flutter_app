@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 
 class ProfileSetupPage extends StatefulWidget {
@@ -45,6 +46,26 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _loadTimeZone();
+  }
+
+  Future<void> _loadTimeZone() async {
+    final prefs = await SharedPreferences.getInstance();
+    final cachedTimeZone = prefs.getString('cached_time_zone');
+    
+    if (cachedTimeZone != null) {
+      setState(() {
+        _timeZone = cachedTimeZone;
+      });
+      if (kDebugMode) {
+        print('📱 Loaded timezone from storage: $_timeZone');
+      }
+    }
+  }
+
+  @override
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
@@ -59,14 +80,19 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+
     if (args != null) {
-      if ((args['phoneNumber'] ?? '').toString().isNotEmpty) {
-        _phoneController.text = args['phoneNumber'];
+      String prefillPhoneNumber = args['phoneNumber'] ?? '';
+      String uid = args['uid'] ?? '';
+
+      if (kDebugMode) {
+        print('📲 Pre-filling profile setup:');
+        print('   • UID: $uid');
+        print('   • Phone: $prefillPhoneNumber');
       }
-      if ((args['timeZone'] ?? '').toString().isNotEmpty) {
-        _timeZone = args['timeZone'];
-      }
-      _language = args['language'] ?? 'English';
+
+      // Set this into your controllers or state
+      _phoneController.text = prefillPhoneNumber;
     }
   }
 

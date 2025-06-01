@@ -59,6 +59,8 @@ class _MessagesPageState extends State<MessagesPage> {
         showUnselectedLabels: true,
         type: BottomNavigationBarType.fixed,
         onTap: _onItemTapped,
+        selectedLabelStyle: GoogleFonts.montserrat(fontSize: 9),
+        unselectedLabelStyle: GoogleFonts.montserrat(fontSize: 9),
       ),
     );
   }

@@ -2,12 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
+import 'package:flutter/foundation.dart';
 
 class OtpPage extends StatefulWidget {
   final String verificationId;
   final String phoneNumber;
 
-  const OtpPage({super.key, required this.verificationId, required this.phoneNumber});
+  const OtpPage({
+    super.key, 
+    required this.verificationId, 
+    required this.phoneNumber,
+  });
 
   @override
   State<OtpPage> createState() => _OtpPageState();
@@ -34,9 +39,25 @@ class _OtpPageState extends State<OtpPage> {
         verificationId: widget.verificationId,
         smsCode: _otpController.text.trim(),
       );
-      await FirebaseAuth.instance.signInWithCredential(credential);
-      if (mounted) {
-        Navigator.pushReplacementNamed(context, '/permissions');
+      final userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
+      
+      if (userCredential.user != null) {
+        if (kDebugMode) {
+          print('✅ OTP verification successful');
+          print('   • User ID: ${userCredential.user!.uid}');
+          print('   • Phone Number: ${widget.phoneNumber}');
+        }
+
+        if (mounted) {
+          Navigator.pushReplacementNamed(
+            context,
+            '/profile-setup',
+            arguments: {
+              'uid': userCredential.user!.uid,
+              'phoneNumber': widget.phoneNumber,
+            },
+          );
+        }
       }
     } catch (e) {
       setState(() {
