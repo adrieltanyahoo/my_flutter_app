@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/foundation.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 
 class ProfileSetupPage extends StatefulWidget {
   const ProfileSetupPage({super.key});
@@ -12,12 +14,70 @@ class ProfileSetupPage extends StatefulWidget {
 class _ProfileSetupPageState extends State<ProfileSetupPage> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _companyController = TextEditingController();
+  final _jobTitleController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _hobbiesController = TextEditingController();
+  String _timeZone = '';
+  String _language = 'English';
+  String? _avatarPath;
   bool _isLoading = false;
+
+  // Add a list of IATA time zones (sample, you can expand as needed)
+  static const List<String> iataTimeZones = [
+    'UTC',
+    'Asia/Kuala_Lumpur',
+    'Asia/Singapore',
+    'Asia/Tokyo',
+    'Asia/Shanghai',
+    'Asia/Bangkok',
+    'Europe/London',
+    'Europe/Paris',
+    'Europe/Berlin',
+    'America/New_York',
+    'America/Los_Angeles',
+    'America/Chicago',
+    'America/Sao_Paulo',
+    'Australia/Sydney',
+    'Africa/Johannesburg',
+    // ... add more as needed
+  ];
 
   @override
   void dispose() {
     _nameController.dispose();
+    _emailController.dispose();
+    _companyController.dispose();
+    _jobTitleController.dispose();
+    _phoneController.dispose();
+    _hobbiesController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    if (args != null) {
+      if ((args['phoneNumber'] ?? '').toString().isNotEmpty) {
+        _phoneController.text = args['phoneNumber'];
+      }
+      if ((args['timeZone'] ?? '').toString().isNotEmpty) {
+        _timeZone = args['timeZone'];
+      }
+      _language = args['language'] ?? 'English';
+    }
+  }
+
+  Future<void> _pickAvatar() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      setState(() {
+        _avatarPath = pickedFile.path;
+      });
+    }
   }
 
   Future<void> _completeSetup() async {
@@ -94,13 +154,22 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
                   Center(
                     child: Stack(
                       children: [
-                        CircleAvatar(
-                          radius: 50,
-                          backgroundColor: Colors.grey[200],
-                          child: Icon(
-                            Icons.person,
-                            size: 50,
-                            color: Colors.grey[400],
+                        GestureDetector(
+                          onTap: _pickAvatar,
+                          child: CircleAvatar(
+                            radius: 50,
+                            backgroundColor: Colors.grey[200],
+                            backgroundImage: _avatarPath != null
+                              ? FileImage(File(_avatarPath!))
+                              : null,
+                            child: _avatarPath == null
+                                ? Text(
+                                    _nameController.text.isNotEmpty
+                                        ? _nameController.text.trim().split(' ').map((e) => e[0]).take(2).join().toUpperCase()
+                                        : 'AT',
+                                    style: GoogleFonts.montserrat(fontSize: 32, color: Colors.grey[600]),
+                                  )
+                                : null,
                           ),
                         ),
                         Positioned(
@@ -122,23 +191,15 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 32),
-                  // Name Input
+                  const SizedBox(height: 24),
+                  // Display Name
                   TextFormField(
                     controller: _nameController,
                     decoration: InputDecoration(
-                      labelText: 'Full Name',
+                      labelText: 'Display Name',
                       labelStyle: GoogleFonts.montserrat(color: Colors.grey[600]),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey[300]!),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.green[600]!),
                       ),
                     ),
                     validator: (value) {
@@ -148,8 +209,122 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: 32),
-                  // Continue Button
+                  const SizedBox(height: 16),
+                  // Email
+                  TextFormField(
+                    controller: _emailController,
+                    decoration: InputDecoration(
+                      labelText: 'Email',
+                      labelStyle: GoogleFonts.montserrat(color: Colors.grey[600]),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // Company Name
+                  TextFormField(
+                    controller: _companyController,
+                    decoration: InputDecoration(
+                      labelText: 'Company Name',
+                      labelStyle: GoogleFonts.montserrat(color: Colors.grey[600]),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // Job Title
+                  TextFormField(
+                    controller: _jobTitleController,
+                    decoration: InputDecoration(
+                      labelText: 'Job Title',
+                      labelStyle: GoogleFonts.montserrat(color: Colors.grey[600]),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // Phone Number (not editable)
+                  TextFormField(
+                    controller: _phoneController,
+                    enabled: false,
+                    decoration: InputDecoration(
+                      labelText: 'Phone Number',
+                      labelStyle: GoogleFonts.montserrat(color: Colors.grey[600]),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // Time Zone (dropdown)
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      return DropdownButtonFormField<String>(
+                        value: iataTimeZones.contains(_timeZone) ? _timeZone : null,
+                        items: iataTimeZones.map((tz) => DropdownMenuItem(
+                          value: tz,
+                          child: SizedBox(
+                            width: constraints.maxWidth - 60, // prevent overflow
+                            child: Text(tz, style: GoogleFonts.montserrat(), overflow: TextOverflow.ellipsis),
+                          ),
+                        )).toList(),
+                        onChanged: (val) {
+                          setState(() {
+                            _timeZone = val ?? '';
+                          });
+                        },
+                        decoration: InputDecoration(
+                          labelText: 'Time Zone',
+                          labelStyle: GoogleFonts.montserrat(color: Colors.grey[600]),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        validator: (val) => val == null || val.isEmpty ? 'Please select a time zone' : null,
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  // Language (not editable, link to settings)
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.pushNamed(context, '/settings-language-timezone');
+                    },
+                    child: AbsorbPointer(
+                      child: TextFormField(
+                        initialValue: _language,
+                        enabled: false,
+                        decoration: InputDecoration(
+                          labelText: 'Language',
+                          labelStyle: GoogleFonts.montserrat(color: Colors.grey[600]),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          suffixIcon: Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey[600]),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // Hobbies & Interests
+                  TextFormField(
+                    controller: _hobbiesController,
+                    maxLines: 2,
+                    decoration: InputDecoration(
+                      labelText: 'Hobbies & Interests',
+                      labelStyle: GoogleFonts.montserrat(color: Colors.grey[600]),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      hintText: 'Share your hobbies and interests',
+                      hintStyle: GoogleFonts.montserrat(color: Colors.grey[400]),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  // Save Changes Button
                   SizedBox(
                     height: 50,
                     child: ElevatedButton(
@@ -171,7 +346,7 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
                               ),
                             )
                           : Text(
-                              'Continue',
+                              'Save Changes',
                               style: GoogleFonts.montserrat(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w500,

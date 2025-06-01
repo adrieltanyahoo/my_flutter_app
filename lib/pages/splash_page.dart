@@ -20,103 +20,83 @@ class _SplashPageState extends State<SplashPage> {
   bool _loading = false;
   String _selectedLanguage = 'English';
 
-  Future<String> fetchCountryCode() async {
+  Future<Map<String, String>> fetchCountryAndTimeZone() async {
     if (kDebugMode) {
-      print('\n🔍 Starting country code detection in splash page...');
+      print('\n🔍 Starting country code and time zone detection in splash page...');
     }
 
     final prefs = await SharedPreferences.getInstance();
     final cachedCountry = prefs.getString('cached_country_code');
+    final cachedTimeZone = prefs.getString('cached_time_zone');
     final lastFetch = prefs.getInt('cached_country_timestamp') ?? 0;
     final now = DateTime.now().millisecondsSinceEpoch;
 
     // Use cache if less than 24h old
-    if (cachedCountry != null && (now - lastFetch) < 86400000) {
+    if (cachedCountry != null && cachedTimeZone != null && (now - lastFetch) < 86400000) {
       if (kDebugMode) {
         print('📱 Using cached country code: $cachedCountry');
         print('   • Last fetched: ${DateTime.fromMillisecondsSinceEpoch(lastFetch)}');
+        print('📱 Using cached time zone: $cachedTimeZone');
       }
-      return cachedCountry;
+      return {'country': cachedCountry, 'timeZone': cachedTimeZone};
     }
+
+    String countryCode = 'US';
+    String timeZone = 'UTC';
 
     try {
       if (kDebugMode) {
         print('📡 Attempting to call ipapi.co...');
       }
-
-      // Using ipapi.co service
-      final apiUrl = 'https://ipapi.co/country';
-      final response = await http.get(
-        Uri.parse(apiUrl),
+      // Country
+      final countryRes = await http.get(
+        Uri.parse('https://ipapi.co/country'),
         headers: {
           'User-Agent': 'WorkApp/1.0',
           'Accept': 'text/plain',
         },
       ).timeout(const Duration(seconds: 5));
-
-      if (kDebugMode) {
-        print('\n📥 Response from ipapi.co:');
-        print('   • Status Code: ${response.statusCode}');
-        print('   • Response Body: "${response.body}"');
-        print('   • Headers: ${response.headers}');
-      }
-
-      if (response.statusCode == 200) {
-        final countryCode = response.body.trim();
-        if (countryCode.length == 2) {  // Valid 2-letter country code
-          if (kDebugMode) {
-            print('✅ Successfully detected country: $countryCode');
-          }
-          await prefs.setString('cached_country_code', countryCode);
-          await prefs.setInt('cached_country_timestamp', now);
-          return countryCode;
-        } else {
-          if (kDebugMode) {
-            print('⚠️ Invalid country code format received: "$countryCode"');
-          }
-        }
-      } else {
-        if (kDebugMode) {
-          print('❌ Unexpected status code: ${response.statusCode}');
-          print('   • Response body: ${response.body}');
+      if (countryRes.statusCode == 200) {
+        final code = countryRes.body.trim();
+        if (code.length == 2) {
+          countryCode = code;
         }
       }
-    } catch (e, stackTrace) {
+      // Time zone
+      final tzRes = await http.get(
+        Uri.parse('https://ipapi.co/timezone'),
+        headers: {
+          'User-Agent': 'WorkApp/1.0',
+          'Accept': 'text/plain',
+        },
+      ).timeout(const Duration(seconds: 5));
+      if (tzRes.statusCode == 200) {
+        final tz = tzRes.body.trim();
+        if (tz.isNotEmpty) {
+          timeZone = tz;
+        }
+      }
+      await prefs.setString('cached_country_code', countryCode);
+      await prefs.setString('cached_time_zone', timeZone);
+      await prefs.setInt('cached_country_timestamp', now);
+    } catch (e) {
       if (kDebugMode) {
-        print('\n❌ Error in country detection:');
-        print('   • Error type: ${e.runtimeType}');
-        print('   • Error message: $e');
-        print('   • Stack trace: $stackTrace');
+        print('❌ Error fetching country/timezone: $e');
       }
     }
-
-    // Device Locale Fallback
-    final localeCountryCode = ui.window.locale.countryCode;
-    if (localeCountryCode != null) {
-      if (kDebugMode) {
-        print('📱 Falling back to device locale: $localeCountryCode');
-      }
-      return localeCountryCode;
-    }
-
-    // Final Fallback
-    if (kDebugMode) {
-      print('⚠️ All detection methods failed, using US as fallback');
-    }
-    return 'US';
+    return {'country': countryCode, 'timeZone': timeZone};
   }
 
   void _continue() async {
     setState(() => _loading = true);
-    final countryCode = await fetchCountryCode();
+    final result = await fetchCountryAndTimeZone();
     setState(() => _loading = false);
     if (!mounted) return;
-    
     if (kDebugMode) {
-      print('Final country code: $countryCode');
+      print('Final country code: ${result['country']}');
+      print('Final time zone: ${result['timeZone']}');
     }
-    
-    Navigator.pushReplacementNamed(context, '/auth', arguments: countryCode);
+    Navigator.pushReplacementNamed(context, '/auth', arguments: result);
   }
 
   @override
