@@ -147,6 +147,23 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: Text(
+            '<',
+            style: GoogleFonts.montserrat(
+              fontSize: 24,
+              color: Colors.green,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          onPressed: () => Navigator.of(context).pop(),
+          splashRadius: 24,
+          padding: const EdgeInsets.only(left: 16),
+        ),
+      ),
       backgroundColor: Colors.white,
       body: SafeArea(
         child: SingleChildScrollView(

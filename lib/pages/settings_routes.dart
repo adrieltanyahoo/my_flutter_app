@@ -1,0 +1,12 @@
+export 'settings/profile_settings_page.dart';
+export 'settings/contact_requests_page.dart';
+export 'settings/invite_earn_page.dart';
+export 'settings/purchases_memberships_page.dart';
+export 'settings/privacy_settings_page.dart';
+export 'settings/language_region_page.dart';
+export 'settings/manage_storage_page.dart';
+export 'settings/accounts_settings_page.dart';
+export 'settings/edit_avatar_page.dart';
+export 'settings/help_center_page.dart';
+export 'settings/send_feedback_page.dart';
+export 'settings/terms_privacy_page.dart'; 

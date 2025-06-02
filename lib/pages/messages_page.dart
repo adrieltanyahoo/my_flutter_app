@@ -126,18 +126,4 @@ class AttendanceScreen extends StatelessWidget {
       ),
     );
   }
-}
-
-class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Text(
-        'Settings Screen',
-        style: GoogleFonts.montserrat(fontSize: 24),
-      ),
-    );
-  }
 } 
