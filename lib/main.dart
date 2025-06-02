@@ -14,28 +14,22 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   // Initialize Firebase
-  try {
-    await Firebase.initializeApp();
-    // Sign out any existing user to test the full flow
-    await FirebaseAuth.instance.signOut();
-  } catch (e) {
-    if (kDebugMode) {
-      print('Firebase initialization error: $e');
+  await Firebase.initializeApp();
+
+  final user = FirebaseAuth.instance.currentUser;
+  if (user != null) {
+    try {
+      await user.getIdToken(true); // Force refresh
+    } catch (e) {
+      await FirebaseAuth.instance.signOut();
     }
-    // If Firebase is already initialized, get the existing instance
-    Firebase.app();
   }
 
-  // Check current user
-  final currentUser = FirebaseAuth.instance.currentUser;
-
-  runApp(MyApp(isLoggedIn: currentUser != null));
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  final bool isLoggedIn;
-
-  const MyApp({super.key, required this.isLoggedIn});
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -46,7 +40,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
       ),
-      initialRoute: isLoggedIn ? '/messages' : '/',
+      initialRoute: '/',  // Always start from splash page
       routes: {
         '/': (context) => const SplashPage(),
         '/auth': (context) => const PhoneAuthPage(),

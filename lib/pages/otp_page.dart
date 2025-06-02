@@ -51,7 +51,7 @@ class _OtpPageState extends State<OtpPage> {
         if (mounted) {
           Navigator.pushReplacementNamed(
             context,
-            '/profile-setup',
+            '/permissions',
             arguments: {
               'uid': userCredential.user!.uid,
               'phoneNumber': widget.phoneNumber,
