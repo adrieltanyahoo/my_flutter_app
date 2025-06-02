@@ -75,8 +75,17 @@ class _OtpPageState extends State<OtpPage> {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: Text(
+            '‹',
+            style: GoogleFonts.montserrat(
+              fontSize: 24,
+              color: Colors.green,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
           onPressed: () => Navigator.pop(context),
+          splashRadius: 24,
+          padding: const EdgeInsets.only(left: 16),
         ),
         title: Text('Verify OTP', style: GoogleFonts.montserrat()),
         centerTitle: true,
