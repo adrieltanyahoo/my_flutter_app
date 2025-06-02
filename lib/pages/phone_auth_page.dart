@@ -120,32 +120,14 @@ class _PhoneAuthPageState extends State<PhoneAuthPage> {
         _errorMessage = '';
       });
 
-      // Check if there's a current user
       _currentUser = _auth.currentUser;
 
-      if (_currentUser != null) {
-        if (kDebugMode) {
-          print('👤 User already signed in:');
-          print('   • UID: ${_currentUser?.uid}');
-          print('   • Phone: ${_currentUser?.phoneNumber}');
-        }
-        
-        if (mounted) {
-          Navigator.pushReplacementNamed(
-            context,
-            '/permissions',
-            arguments: {
-              'uid': _currentUser?.uid,
-              'phoneNumber': _currentUser?.phoneNumber,
-              'timeZone': _timeZone,
-            },
-          );
-        }
-      } else {
-        if (kDebugMode) {
-          print('👤 No user currently signed in');
-        }
+      if (kDebugMode) {
+        print('👤 Checking auth state, but always forcing user to go through flow');
       }
+
+      // Do NOT auto-skip; always let the user continue through phone auth, permissions, and profile setup
+
     } catch (e) {
       if (kDebugMode) {
         print('❌ Error checking auth state: $e');

@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/foundation.dart';
+import '../screens/messages_screen.dart';
+import '../screens/calendar_screen.dart';
+import '../screens/tasks_screen.dart';
+import '../screens/attendance_screen.dart';
+import '../screens/settings_screen.dart';
 
 class MessagesPage extends StatefulWidget {
   const MessagesPage({super.key});
@@ -13,11 +18,11 @@ class _MessagesPageState extends State<MessagesPage> {
   int _selectedIndex = 0;
 
   static const List<Widget> _pages = <Widget>[
-    MessagesView(),
-    CalendarView(),
-    TasksView(),
-    AttendanceView(),
-    SettingsView(),
+    MessagesScreen(),
+    CalendarScreen(),
+    TasksScreen(),
+    AttendanceScreen(),
+    SettingsScreen(),
   ];
 
   void _onItemTapped(int index) {
@@ -67,70 +72,70 @@ class _MessagesPageState extends State<MessagesPage> {
 }
 
 // Placeholder views for each tab
-class MessagesView extends StatelessWidget {
-  const MessagesView({super.key});
+class MessagesScreen extends StatelessWidget {
+  const MessagesScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Center(
       child: Text(
-        'Messages',
+        'Messages Screen',
         style: GoogleFonts.montserrat(fontSize: 24),
       ),
     );
   }
 }
 
-class CalendarView extends StatelessWidget {
-  const CalendarView({super.key});
+class CalendarScreen extends StatelessWidget {
+  const CalendarScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Center(
       child: Text(
-        'Calendar',
+        'Calendar Screen',
         style: GoogleFonts.montserrat(fontSize: 24),
       ),
     );
   }
 }
 
-class TasksView extends StatelessWidget {
-  const TasksView({super.key});
+class TasksScreen extends StatelessWidget {
+  const TasksScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Center(
       child: Text(
-        'Tasks',
+        'Tasks Screen',
         style: GoogleFonts.montserrat(fontSize: 24),
       ),
     );
   }
 }
 
-class AttendanceView extends StatelessWidget {
-  const AttendanceView({super.key});
+class AttendanceScreen extends StatelessWidget {
+  const AttendanceScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Center(
       child: Text(
-        'Attendance',
+        'Attendance Screen',
         style: GoogleFonts.montserrat(fontSize: 24),
       ),
     );
   }
 }
 
-class SettingsView extends StatelessWidget {
-  const SettingsView({super.key});
+class SettingsScreen extends StatelessWidget {
+  const SettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Center(
       child: Text(
-        'Settings',
+        'Settings Screen',
         style: GoogleFonts.montserrat(fontSize: 24),
       ),
     );
