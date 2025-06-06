@@ -11,14 +11,7 @@ class ManageStoragePage extends StatelessWidget {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: Text(
-            '‹',
-            style: GoogleFonts.montserrat(
-              fontSize: 24,
-              color: Colors.green,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.green),
           onPressed: () => Navigator.of(context).pop(),
           splashRadius: 24,
           padding: const EdgeInsets.only(left: 16),

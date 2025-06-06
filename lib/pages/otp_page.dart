@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
 import 'package:flutter/foundation.dart';
+import 'dart:async';
 
 class OtpPage extends StatefulWidget {
   final String verificationId;
@@ -23,9 +24,44 @@ class _OtpPageState extends State<OtpPage> {
   bool _isLoading = false;
   String _errorMessage = '';
 
+  int _secondsRemaining = 60;
+  Timer? _timer;
+  bool _canResend = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _startTimer();
+  }
+
+  void _startTimer() {
+    setState(() {
+      _secondsRemaining = 60;
+      _canResend = false;
+    });
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_secondsRemaining > 0) {
+        if (mounted) {
+          setState(() {
+            _secondsRemaining--;
+          });
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _canResend = true;
+          });
+        }
+        _timer?.cancel();
+      }
+    });
+  }
+
   @override
   void dispose() {
     _otpController.dispose();
+    _timer?.cancel();
     super.dispose();
   }
 
@@ -70,19 +106,24 @@ class _OtpPageState extends State<OtpPage> {
     }
   }
 
+  Future<void> _resendCode() async {
+    // TODO: Implement actual resend logic using FirebaseAuth
+    // For now, just restart the timer
+    _startTimer();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('OTP code resent', style: GoogleFonts.montserrat()),
+        backgroundColor: Colors.green[600],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: Text(
-            '‹',
-            style: GoogleFonts.montserrat(
-              fontSize: 24,
-              color: Colors.green,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.green),
           onPressed: () => Navigator.pop(context),
           splashRadius: 24,
           padding: const EdgeInsets.only(left: 16),
@@ -135,6 +176,18 @@ class _OtpPageState extends State<OtpPage> {
                     textAlign: TextAlign.center,
                   ),
                 ],
+                const SizedBox(height: 32),
+                if (!_canResend)
+                  Text(
+                    'Resend code in 00:${_secondsRemaining.toString().padLeft(2, '0')}',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.montserrat(fontSize: 14, color: Colors.grey[700]),
+                  ),
+                if (_canResend)
+                  TextButton(
+                    onPressed: _resendCode,
+                    child: Text('Resend code', style: GoogleFonts.montserrat(fontSize: 14, color: Colors.green[700], fontWeight: FontWeight.bold)),
+                  ),
                 const SizedBox(height: 32),
                 SizedBox(
                   height: 50,

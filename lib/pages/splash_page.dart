@@ -18,7 +18,6 @@ class SplashPage extends StatefulWidget {
 
 class _SplashPageState extends State<SplashPage> {
   bool _loading = false;
-  String _selectedLanguage = 'English';
 
   Future<Map<String, String>> fetchCountryAndTimeZone() async {
     if (kDebugMode) {
@@ -199,43 +198,6 @@ class _SplashPageState extends State<SplashPage> {
                             fontSize: 16,
                             fontWeight: FontWeight.w500,
                           ),
-                        ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                // Language Selector
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.grey[50],
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey[300]!),
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: _selectedLanguage,
-                      isExpanded: true,
-                      icon: const Icon(Icons.language),
-                      items: ['English']
-                          .map((String value) {
-                            return DropdownMenuItem<String>(
-                              value: value,
-                              child: Text(
-                                value,
-                                style: GoogleFonts.montserrat(
-                                  fontSize: 14,
-                                  color: Colors.grey[800],
-                                ),
-                              ),
-                            );
-                          }).toList(),
-                      onChanged: (String? newValue) {
-                        if (newValue != null) {
-                          setState(() {
-                            _selectedLanguage = newValue;
-                          });
-                        }
-                      },
                     ),
                   ),
                 ),

@@ -16,7 +16,7 @@ class TermsOfServicePage extends StatelessWidget {
           ),
         ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.green),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
