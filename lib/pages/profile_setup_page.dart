@@ -8,6 +8,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import '../services/user_profile_service.dart';
+import 'package:provider/provider.dart';
+import '../services/user_profile_notifier.dart';
+import 'settings/user_avatar.dart';
 
 class ProfileSetupPage extends StatefulWidget {
   const ProfileSetupPage({super.key});
@@ -27,6 +30,7 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
   String _timeZone = '';
   String _language = 'English';
   String? _avatarPath;
+  String? _profileAvatarUrl;
   bool _isLoading = false;
   DateTime? _birthday;
   String? _birthdayString;
@@ -86,6 +90,7 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
           _phoneController.text = profile.phone;
           _hobbiesController.text = profile.hobbies ?? '';
           _avatarPath = null;
+          _profileAvatarUrl = profile.avatarUrl;
           if (profile.birthday != null) {
             _birthdayString = profile.birthday;
             _birthday = DateTime.tryParse(profile.birthday!);
@@ -187,6 +192,11 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
         avatarUrl: avatarUrl,
       );
       await UserProfileService.saveProfile(profile);
+      // Notify the UserProfileNotifier after successful save
+      Provider.of<UserProfileNotifier>(context, listen: false).updateProfile(
+        avatarUrl: avatarUrl,
+        displayName: _nameController.text.trim(),
+      );
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/messages');
       }
@@ -200,7 +210,6 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
           ),
         );
       }
-    } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -223,269 +232,259 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
         child: _isFetching
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const SizedBox(height: 60),
-                      Text(
-                        'Edit Your Profile',
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.montserrat(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w600,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24.0),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: 60),
+                  Text(
+                    'Setup Your Profile',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.montserrat(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  // Profile Picture
+                  Center(
+                    child: Stack(
+                      children: [
+                        GestureDetector(
+                          onTap: _pickAvatar,
+                          child: UserAvatar(
+                            localPath: _avatarPath,
+                            networkUrl: _profileAvatarUrl,
+                            initials: _nameController.text.isNotEmpty
+                                ? _nameController.text.trim().split(' ').map((e) => e[0]).take(2).join().toUpperCase()
+                                : 'U',
+                            radius: 50,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Update your personal information',
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.montserrat(
-                          fontSize: 14,
-                          color: Colors.grey[600],
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: Colors.green[600],
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.camera_alt,
+                              size: 20,
+                              color: Colors.white,
+                            ),
+                          ),
                         ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  // Display Name
+                  TextFormField(
+                    controller: _nameController,
+                    style: GoogleFonts.montserrat(fontSize: 12),
+                    decoration: InputDecoration(
+                      labelText: 'Display Name',
+                      labelStyle: GoogleFonts.montserrat(fontSize: 12, color: Colors.grey[600]),
+                      prefixIcon: const Icon(Icons.person_outline),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      const SizedBox(height: 32),
-                      // Profile Picture
-                      Center(
-                        child: Stack(
-                          children: [
-                            GestureDetector(
-                              onTap: _pickAvatar,
-                              child: CircleAvatar(
-                                radius: 50,
-                                backgroundColor: Colors.grey[200],
-                                backgroundImage: _avatarPath != null
-                                  ? FileImage(File(_avatarPath!))
-                                  : null,
-                                child: _avatarPath == null
-                                    ? Text(
-                                        _nameController.text.isNotEmpty
-                                            ? _nameController.text.trim().split(' ').map((e) => e[0]).take(2).join().toUpperCase()
-                                            : 'AT',
-                                        style: GoogleFonts.montserrat(fontSize: 32, color: Colors.grey[600]),
-                                      )
-                                    : null,
+                      hintText: 'Enter your name',
+                      hintStyle: GoogleFonts.montserrat(fontSize: 10, color: Colors.grey[400]),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter your name';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  // Email
+                  TextFormField(
+                    controller: _emailController,
+                    style: GoogleFonts.montserrat(fontSize: 12),
+                    decoration: InputDecoration(
+                      labelText: 'Email',
+                      labelStyle: GoogleFonts.montserrat(fontSize: 12, color: Colors.grey[600]),
+                      prefixIcon: const Icon(Icons.email_outlined),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // Company Name
+                  TextFormField(
+                    controller: _companyController,
+                    style: GoogleFonts.montserrat(fontSize: 12),
+                    decoration: InputDecoration(
+                      labelText: 'Company Name',
+                      labelStyle: GoogleFonts.montserrat(fontSize: 12, color: Colors.grey[600]),
+                      prefixIcon: const Icon(Icons.apartment_outlined),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // Job Title
+                  TextFormField(
+                    controller: _jobTitleController,
+                    style: GoogleFonts.montserrat(fontSize: 12),
+                    decoration: InputDecoration(
+                      labelText: 'Job Title',
+                      labelStyle: GoogleFonts.montserrat(fontSize: 12, color: Colors.grey[600]),
+                      prefixIcon: const Icon(Icons.work_outline),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // Phone Number
+                  TextFormField(
+                    controller: _phoneController,
+                    enabled: false,
+                    style: GoogleFonts.montserrat(fontSize: 12),
+                    decoration: InputDecoration(
+                      labelText: 'Phone Number',
+                      labelStyle: GoogleFonts.montserrat(fontSize: 12, color: Colors.grey[600]),
+                      prefixIcon: const Icon(Icons.phone_outlined),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // Birthday
+                  GestureDetector(
+                    onTap: () async {
+                      FocusScope.of(context).unfocus();
+                      final now = DateTime.now();
+                      final initialDate = _birthday ?? DateTime(now.year - 18, now.month, now.day);
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: initialDate,
+                        firstDate: DateTime(now.year - 100),
+                        lastDate: DateTime(now.year - 10),
+                        builder: (context, child) {
+                          return Theme(
+                            data: Theme.of(context).copyWith(
+                              colorScheme: ColorScheme.light(
+                                primary: Colors.green[600]!,
+                                onPrimary: Colors.white,
+                                onSurface: Colors.black,
+                              ),
+                              textButtonTheme: TextButtonThemeData(
+                                style: TextButton.styleFrom(
+                                  foregroundColor: Colors.green[600],
+                                ),
                               ),
                             ),
-                            Positioned(
-                              bottom: 0,
-                              right: 0,
-                              child: Container(
-                                padding: const EdgeInsets.all(4),
-                                decoration: BoxDecoration(
-                                  color: Colors.green[600],
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.camera_alt,
-                                  size: 20,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Tap to change your profile picture',
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.montserrat(fontSize: 14, color: Colors.grey[600]),
-                      ),
-                      const SizedBox(height: 24),
-                      // Display Name
-                      TextFormField(
-                        controller: _nameController,
+                            child: child!,
+                          );
+                        },
+                      );
+                      if (picked != null) {
+                        setState(() {
+                          _birthday = picked;
+                          _birthdayString = picked.toIso8601String().split('T')[0];
+                        });
+                      }
+                    },
+                    child: AbsorbPointer(
+                      child: TextFormField(
+                        controller: TextEditingController(text: _birthday != null ? _birthdayString : ''),
+                        readOnly: true,
+                        style: GoogleFonts.montserrat(fontSize: 12),
                         decoration: InputDecoration(
-                          labelText: 'Display Name',
-                          labelStyle: GoogleFonts.montserrat(color: Colors.grey[600]),
-                          prefixIcon: const Icon(Icons.person_outline),
+                          labelText: 'Birthday',
+                          labelStyle: GoogleFonts.montserrat(fontSize: 12, color: Colors.grey[600]),
+                          prefixIcon: const Icon(Icons.cake_outlined),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
+                          hintText: 'Select your birthday',
+                          hintStyle: GoogleFonts.montserrat(fontSize: 10, color: Colors.grey[400]),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         ),
                         validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter your name';
+                          if (_birthday == null) {
+                            return 'Please select your birthday';
                           }
                           return null;
                         },
                       ),
-                      const SizedBox(height: 16),
-                      // Email
-                      TextFormField(
-                        controller: _emailController,
-                        decoration: InputDecoration(
-                          labelText: 'Email',
-                          labelStyle: GoogleFonts.montserrat(color: Colors.grey[600]),
-                          prefixIcon: const Icon(Icons.email_outlined),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      // Company Name
-                      TextFormField(
-                        controller: _companyController,
-                        decoration: InputDecoration(
-                          labelText: 'Company Name',
-                          labelStyle: GoogleFonts.montserrat(color: Colors.grey[600]),
-                          prefixIcon: const Icon(Icons.apartment_outlined),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      // Job Title
-                      TextFormField(
-                        controller: _jobTitleController,
-                        decoration: InputDecoration(
-                          labelText: 'Job Title',
-                          labelStyle: GoogleFonts.montserrat(color: Colors.grey[600]),
-                          prefixIcon: const Icon(Icons.work_outline),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      // Phone Number (not editable)
-                      TextFormField(
-                        controller: _phoneController,
-                        enabled: false,
-                        decoration: InputDecoration(
-                          labelText: 'Phone Number',
-                          labelStyle: GoogleFonts.montserrat(color: Colors.grey[600]),
-                          prefixIcon: const Icon(Icons.phone_outlined),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'To change phone numbers, go to the settings page',
-                        style: GoogleFonts.montserrat(fontSize: 12, color: Colors.grey[600]),
-                      ),
-                      const SizedBox(height: 16),
-                      // Birthday (bank app style)
-                      GestureDetector(
-                        onTap: () async {
-                          FocusScope.of(context).unfocus();
-                          final now = DateTime.now();
-                          final initialDate = _birthday ?? DateTime(now.year - 18, now.month, now.day);
-                          final picked = await showDatePicker(
-                            context: context,
-                            initialDate: initialDate,
-                            firstDate: DateTime(now.year - 100),
-                            lastDate: DateTime(now.year - 10),
-                            builder: (context, child) {
-                              return Theme(
-                                data: Theme.of(context).copyWith(
-                                  colorScheme: ColorScheme.light(
-                                    primary: Colors.green[600]!,
-                                    onPrimary: Colors.white,
-                                    onSurface: Colors.black,
-                                  ),
-                                  textButtonTheme: TextButtonThemeData(
-                                    style: TextButton.styleFrom(
-                                      foregroundColor: Colors.green[600],
-                                    ),
-                                  ),
-                                ),
-                                child: child!,
-                              );
-                            },
-                          );
-                          if (picked != null) {
-                            setState(() {
-                              _birthday = picked;
-                              _birthdayString = picked.toIso8601String().split('T')[0];
-                            });
-                          }
-                        },
-                        child: AbsorbPointer(
-                          child: TextFormField(
-                            controller: TextEditingController(text: _birthday != null ? _birthdayString : ''),
-                            readOnly: true,
-                            decoration: InputDecoration(
-                              labelText: 'Birthday',
-                              labelStyle: GoogleFonts.montserrat(color: Colors.grey[600]),
-                              prefixIcon: const Icon(Icons.cake_outlined),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              hintText: 'Select your birthday',
-                            ),
-                            validator: (value) {
-                              if (_birthday == null) {
-                                return 'Please select your birthday';
-                              }
-                              return null;
-                            },
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      // Hobbies & Interests
-                      TextFormField(
-                        controller: _hobbiesController,
-                        maxLines: 2,
-                        decoration: InputDecoration(
-                          labelText: 'Hobbies & Interests',
-                          labelStyle: GoogleFonts.montserrat(color: Colors.grey[600]),
-                          prefixIcon: const Icon(Icons.interests_outlined),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          hintText: 'Share your hobbies and interests',
-                          hintStyle: GoogleFonts.montserrat(color: Colors.grey[400]),
-                          helperText: 'Tell us what you enjoy doing in your free time',
-                          helperStyle: GoogleFonts.montserrat(color: Colors.grey[600]),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      // Save Changes Button
-                      SizedBox(
-                        height: 50,
-                        child: ElevatedButton(
-                          onPressed: _isLoading ? null : _completeSetup,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green[600],
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(24),
-                            ),
-                          ),
-                          child: _isLoading
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                  ),
-                                )
-                              : Text(
-                                  'Save Changes',
-                                  style: GoogleFonts.montserrat(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 16),
+                  // Hobbies & Interests
+                  TextFormField(
+                    controller: _hobbiesController,
+                    style: GoogleFonts.montserrat(fontSize: 12),
+                    maxLines: 2,
+                    decoration: InputDecoration(
+                      labelText: 'Hobbies & Interests',
+                      labelStyle: GoogleFonts.montserrat(fontSize: 12, color: Colors.grey[600]),
+                      prefixIcon: const Icon(Icons.interests_outlined),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      hintText: 'Share your hobbies and interests',
+                      hintStyle: GoogleFonts.montserrat(fontSize: 10, color: Colors.grey[400]),
+                      helperText: 'Tell us what you enjoy doing in your free time',
+                      helperStyle: GoogleFonts.montserrat(fontSize: 10, color: Colors.grey[600]),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  // Save Changes Button
+                  SizedBox(
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: _isLoading ? null : _completeSetup,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green[600],
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                      ),
+                      child: _isLoading
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
+                          : Text(
+                              'Save Changes',
+                              style: GoogleFonts.montserrat(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                    ),
+                  ),
+                ],
               ),
+            ),
           ),
+        ),
       ),
     );
   }
