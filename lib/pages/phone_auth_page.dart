@@ -122,10 +122,10 @@ class _PhoneAuthPageState extends State<PhoneAuthPage> {
 
       _currentUser = _auth.currentUser;
 
-      if (kDebugMode) {
+        if (kDebugMode) {
         print('👤 Checking auth state, but always forcing user to go through flow');
-      }
-
+        }
+        
       // Do NOT auto-skip; always let the user continue through phone auth, permissions, and profile setup
 
     } catch (e) {
@@ -274,8 +274,14 @@ class _PhoneAuthPageState extends State<PhoneAuthPage> {
                   style: const TextStyle(fontSize: 16),
                   dropdownTextStyle: const TextStyle(fontSize: 16),
                   onChanged: (phone) {
+                    // Always format to E.164: +<countryCode><number-without-leading-zero>
+                    String localNumber = phone.number.replaceAll(RegExp(r'\\D'), '');
+                    if (localNumber.startsWith('0')) {
+                      localNumber = localNumber.substring(1);
+                    }
+                    String countryCode = phone.countryCode.replaceAll('+', '');
                     setState(() {
-                      _e164PhoneNumber = phone.completeNumber;
+                      _e164PhoneNumber = '+$countryCode$localNumber';
                       _errorMessage = '';
                     });
                   },

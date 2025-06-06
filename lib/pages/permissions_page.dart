@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter/foundation.dart';
+import '../services/permission_service.dart';
 
 class PermissionsPage extends StatefulWidget {
   const PermissionsPage({super.key});
@@ -20,9 +21,16 @@ class _PermissionsPageState extends State<PermissionsPage> {
   @override
   void initState() {
     super.initState();
-    _mediaPermission = true;
-    _contactsPermission = true;
-    _notificationPermission = true;
+    _loadSavedPreferences();
+  }
+
+  Future<void> _loadSavedPreferences() async {
+    final preferences = await PermissionService.loadPermissionPreferences();
+    setState(() {
+      _mediaPermission = preferences['media'] ?? true;
+      _contactsPermission = preferences['contacts'] ?? true;
+      _notificationPermission = preferences['notification'] ?? true;
+    });
   }
 
   @override
@@ -40,10 +48,6 @@ class _PermissionsPageState extends State<PermissionsPage> {
     }
   }
 
-  Future<void> _checkCurrentPermissions() async {
-    // This function is now unused to avoid toggles being reset to false
-  }
-
   Future<void> _requestPermissions() async {
     setState(() => _isLoading = true);
 
@@ -52,40 +56,184 @@ class _PermissionsPageState extends State<PermissionsPage> {
         print('🔐 Requesting permissions...');
       }
 
-      // Request contacts permission if enabled
-      if (_contactsPermission) {
-        final contactStatus = await Permission.contacts.request();
-        if (kDebugMode) {
-          print('👥 Contacts permission: ${contactStatus.name}');
-        }
-      }
+      // Save preferences before requesting permissions
+      await PermissionService.savePermissionPreferences(
+        media: _mediaPermission,
+        contacts: _contactsPermission,
+        notification: _notificationPermission,
+      );
 
-      // Request media permission if enabled
-      if (_mediaPermission) {
-        final mediaStatus = await Permission.photos.request();
-        if (kDebugMode) {
-          print('🖼️ Media permission: ${mediaStatus.name}');
-        }
-      }
-
-      // Request notification permission if enabled
-      if (_notificationPermission) {
-        final notificationStatus = await Permission.notification.request();
-        if (kDebugMode) {
-          print('🔔 Notification permission: ${notificationStatus.name}');
-        }
-      }
-
-      // Navigate to profile setup page after permissions are handled
-      if (mounted) {
-        Navigator.pushReplacementNamed(
-          context,
-          '/profile-setup',
-          arguments: {
-            'phoneNumber': _userDetails?['phoneNumber'],
-            'timeZone': _userDetails?['timeZone'],
-          },
+      // Show a single dialog explaining all permissions that will be requested
+      if (_contactsPermission || _mediaPermission || _notificationPermission) {
+        final shouldProceed = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text('App Permissions', style: GoogleFonts.montserrat(fontSize: 20, fontWeight: FontWeight.bold)),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Workaton needs the following permissions:',
+                    style: GoogleFonts.montserrat(fontWeight: FontWeight.w500, fontSize: 14),
+                  ),
+                  const SizedBox(height: 12),
+                  if (_contactsPermission)
+                    Text('• Contacts - to help you connect with friends', style: GoogleFonts.montserrat(fontSize: 13)),
+                  if (_mediaPermission)
+                    Text('• Media - to set profile picture and share photos', style: GoogleFonts.montserrat(fontSize: 13)),
+                  if (_notificationPermission)
+                    Text('• Notifications - for messages and updates', style: GoogleFonts.montserrat(fontSize: 13)),
+                  const SizedBox(height: 12),
+                  Text(
+                    'You will be asked to grant these permissions one by one.',
+                    style: GoogleFonts.montserrat(fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: Text('Skip All', style: GoogleFonts.montserrat(fontSize: 14)),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: Text('Continue', style: GoogleFonts.montserrat(fontSize: 14, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
         );
+
+        if (shouldProceed == true) {
+          final denied = <String>[];
+          // Request permissions one after another
+          if (_contactsPermission) {
+            final contactStatus = await Permission.contacts.request();
+            if (kDebugMode) {
+              print('👥 Contacts permission: ${contactStatus.name}');
+            }
+            if (await Permission.contacts.isPermanentlyDenied) {
+              await showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: Text('Contacts Permission Blocked', style: GoogleFonts.montserrat()),
+                  content: Text('You have permanently denied Contacts permission. Please enable it in system settings.', style: GoogleFonts.montserrat()),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text('OK', style: GoogleFonts.montserrat()),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        openAppSettings();
+                      },
+                      child: Text('Open Settings', style: GoogleFonts.montserrat()),
+                    ),
+                  ],
+                ),
+              );
+            }
+            final finalStatus = await Permission.contacts.status;
+            if (!finalStatus.isGranted) denied.add('Contacts');
+          }
+
+          if (_mediaPermission) {
+            final mediaStatus = await Permission.photos.request();
+            if (kDebugMode) {
+              print('🖼️ Media permission: ${mediaStatus.name}');
+            }
+            if (await Permission.photos.isPermanentlyDenied) {
+              await showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: Text('Media Permission Blocked', style: GoogleFonts.montserrat()),
+                  content: Text('You have permanently denied Media permission. Please enable it in system settings.', style: GoogleFonts.montserrat()),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text('OK', style: GoogleFonts.montserrat()),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        openAppSettings();
+                      },
+                      child: Text('Open Settings', style: GoogleFonts.montserrat()),
+                    ),
+                  ],
+                ),
+              );
+            }
+            final finalStatus = await Permission.photos.status;
+            if (!finalStatus.isGranted) denied.add('Media');
+          }
+
+          if (_notificationPermission) {
+            final notificationStatus = await Permission.notification.request();
+            if (kDebugMode) {
+              print('🔔 Notification permission: ${notificationStatus.name}');
+            }
+            if (await Permission.notification.isPermanentlyDenied) {
+              await showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: Text('Notification Permission Blocked', style: GoogleFonts.montserrat()),
+                  content: Text('You have permanently denied Notification permission. Please enable it in system settings.', style: GoogleFonts.montserrat()),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text('OK', style: GoogleFonts.montserrat()),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        openAppSettings();
+                      },
+                      child: Text('Open Settings', style: GoogleFonts.montserrat()),
+                    ),
+                  ],
+                ),
+              );
+            }
+            final finalStatus = await Permission.notification.status;
+            if (!finalStatus.isGranted) denied.add('Notifications');
+          }
+
+          // Show summary if any permissions were denied
+          if (denied.isNotEmpty && mounted) {
+            await showDialog(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: Text('Permissions Denied', style: GoogleFonts.montserrat()),
+                content: Text(
+                  'The following permissions were not granted: ${denied.join(', ')}. Some features may not work as expected.',
+                  style: GoogleFonts.montserrat(),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text('OK', style: GoogleFonts.montserrat()),
+                  ),
+                ],
+              ),
+            );
+          }
+        }
+
+        // Navigate to profile setup page after permissions are handled
+        if (mounted) {
+          Navigator.pushReplacementNamed(
+            context,
+            '/profile-setup',
+            arguments: {
+              'phoneNumber': _userDetails?['phoneNumber'],
+              'timeZone': _userDetails?['timeZone'],
+            },
+          );
+        }
       }
     } catch (e) {
       if (kDebugMode) {
@@ -116,14 +264,7 @@ class _PermissionsPageState extends State<PermissionsPage> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: Text(
-            '‹',
-            style: GoogleFonts.montserrat(
-              fontSize: 24,
-              color: Colors.green,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.green),
           onPressed: () => Navigator.of(context).pop(),
           splashRadius: 24,
           padding: const EdgeInsets.only(left: 16),

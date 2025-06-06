@@ -25,8 +25,16 @@ import 'pages/settings/terms_privacy_page.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Initialize Firebase
-  await Firebase.initializeApp();
+  // Initialize Firebase with explicit storage bucket
+  await Firebase.initializeApp(
+    options: const FirebaseOptions(
+      apiKey: 'AIzaSyB-fnn_QINfoRGrdSJzUONVn4ZhPXiRmJY',
+      appId: '1:166902517179:android:4eaca37e2cc9e25902889e',
+      messagingSenderId: '166902517179',
+      projectId: 'workatonflutter',
+      storageBucket: 'workatonflutter.firebasestorage.app',
+    ),
+  );
 
   final user = FirebaseAuth.instance.currentUser;
   if (user != null) {
