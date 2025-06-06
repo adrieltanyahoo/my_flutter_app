@@ -25,13 +25,16 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
   DateTime? _birthday;
   String? _birthdayString;
   String? _avatarPath;
+  String? _profileAvatarUrl;
   bool _isLoading = false;
   bool _isFetching = false;
+  bool _isEditing = false;
 
   @override
   void initState() {
     super.initState();
     _loadProfile();
+    _isEditing = false;
   }
 
   Future<void> _loadProfile() async {
@@ -47,6 +50,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
           _phoneController.text = profile.phone;
           _hobbiesController.text = profile.hobbies ?? '';
           _avatarPath = null;
+          _profileAvatarUrl = profile.avatarUrl;
           if (profile.birthday != null) {
             _birthdayString = profile.birthday;
             _birthday = DateTime.tryParse(profile.birthday!);
@@ -57,7 +61,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to load profile. Please check your connection.', style: GoogleFonts.montserrat()),
+            content: Text('Failed to load profile. Please check your connection.', style: GoogleFonts.montserrat(fontSize: 12)),
             backgroundColor: Colors.red,
           ),
         );
@@ -78,6 +82,15 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
     }
   }
 
+  ImageProvider<Object>? _getAvatarImage() {
+    if (_avatarPath != null) {
+      return FileImage(File(_avatarPath!));
+    } else if (_profileAvatarUrl != null && _profileAvatarUrl!.isNotEmpty) {
+      return NetworkImage(_profileAvatarUrl!);
+    }
+    return null;
+  }
+
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate() || _isLoading) return;
     setState(() => _isLoading = true);
@@ -92,7 +105,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Failed to upload avatar. Please try again.', style: GoogleFonts.montserrat()),
+                content: Text('Failed to upload avatar. Please try again.', style: GoogleFonts.montserrat(fontSize: 12)),
                 backgroundColor: Colors.red,
               ),
             );
@@ -119,16 +132,20 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Profile updated!', style: GoogleFonts.montserrat()),
+            content: Text('Profile updated!', style: GoogleFonts.montserrat(fontSize: 12)),
             backgroundColor: Colors.green[600],
           ),
         );
+        setState(() {
+          _isEditing = false;
+        });
+        await _loadProfile();
       }
     } catch (e, st) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to update profile. Please try again.', style: GoogleFonts.montserrat()),
+            content: Text('Failed to update profile. Please try again.', style: GoogleFonts.montserrat(fontSize: 12)),
             backgroundColor: Colors.red,
           ),
         );
@@ -164,17 +181,15 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const SizedBox(height: 60),
+                      const SizedBox(height: 24),
                       Center(
                         child: GestureDetector(
-                          onTap: _pickAvatar,
+                          onTap: _isEditing ? _pickAvatar : null,
                           child: CircleAvatar(
                             radius: 50,
                             backgroundColor: Colors.grey[200],
-                            backgroundImage: _avatarPath != null
-                              ? FileImage(File(_avatarPath!))
-                              : null,
-                            child: _avatarPath == null
+                            backgroundImage: _getAvatarImage(),
+                            child: (_avatarPath == null && (_profileAvatarUrl == null || _profileAvatarUrl!.isEmpty))
                                 ? Text(
                                     _nameController.text.isNotEmpty
                                         ? _nameController.text.trim().split(' ').map((e) => e[0]).take(2).join().toUpperCase()
@@ -185,16 +200,31 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                           ),
                         ),
                       ),
+                      const SizedBox(height: 12),
+                      Center(
+                        child: Text(
+                          (_jobTitleController.text.isNotEmpty ? _jobTitleController.text : 'Job Title') +
+                            (_companyController.text.isNotEmpty ? ' at ${_companyController.text}' : ''),
+                          style: GoogleFonts.montserrat(fontSize: 16, color: Colors.grey[700], fontWeight: FontWeight.w500),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
                       const SizedBox(height: 24),
                       TextFormField(
                         controller: _nameController,
+                        enabled: _isEditing,
+                        style: GoogleFonts.montserrat(fontSize: 12),
                         decoration: InputDecoration(
                           labelText: 'Display Name',
-                          labelStyle: GoogleFonts.montserrat(color: Colors.grey[600]),
+                          labelStyle: GoogleFonts.montserrat(fontSize: 12, color: Colors.grey[600]),
                           prefixIcon: const Icon(Icons.person_outline),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
+                          hintText: 'Enter your name',
+                          hintStyle: GoogleFonts.montserrat(fontSize: 10, color: Colors.grey[400]),
+                          helperText: null,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         ),
                         validator: (value) {
                           if (value == null || value.isEmpty) {
@@ -206,105 +236,123 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                       const SizedBox(height: 16),
                       TextFormField(
                         controller: _emailController,
+                        enabled: _isEditing,
+                        style: GoogleFonts.montserrat(fontSize: 12),
                         decoration: InputDecoration(
                           labelText: 'Email',
-                          labelStyle: GoogleFonts.montserrat(color: Colors.grey[600]),
+                          labelStyle: GoogleFonts.montserrat(fontSize: 12, color: Colors.grey[600]),
                           prefixIcon: const Icon(Icons.email_outlined),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         ),
                       ),
                       const SizedBox(height: 16),
                       TextFormField(
                         controller: _companyController,
+                        enabled: _isEditing,
+                        style: GoogleFonts.montserrat(fontSize: 12),
                         decoration: InputDecoration(
                           labelText: 'Company Name',
-                          labelStyle: GoogleFonts.montserrat(color: Colors.grey[600]),
+                          labelStyle: GoogleFonts.montserrat(fontSize: 12, color: Colors.grey[600]),
                           prefixIcon: const Icon(Icons.apartment_outlined),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         ),
                       ),
                       const SizedBox(height: 16),
                       TextFormField(
                         controller: _jobTitleController,
+                        enabled: _isEditing,
+                        style: GoogleFonts.montserrat(fontSize: 12),
                         decoration: InputDecoration(
                           labelText: 'Job Title',
-                          labelStyle: GoogleFonts.montserrat(color: Colors.grey[600]),
+                          labelStyle: GoogleFonts.montserrat(fontSize: 12, color: Colors.grey[600]),
                           prefixIcon: const Icon(Icons.work_outline),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         ),
                       ),
                       const SizedBox(height: 16),
                       TextFormField(
                         controller: _phoneController,
                         enabled: false,
+                        style: GoogleFonts.montserrat(fontSize: 12),
                         decoration: InputDecoration(
                           labelText: 'Phone Number',
-                          labelStyle: GoogleFonts.montserrat(color: Colors.grey[600]),
+                          labelStyle: GoogleFonts.montserrat(fontSize: 12, color: Colors.grey[600]),
                           prefixIcon: const Icon(Icons.phone_outlined),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         'To change phone numbers, go to the settings page',
-                        style: GoogleFonts.montserrat(fontSize: 12, color: Colors.grey[600]),
+                        style: GoogleFonts.montserrat(fontSize: 10, color: Colors.grey[600]),
                       ),
                       const SizedBox(height: 16),
                       GestureDetector(
-                        onTap: () async {
-                          FocusScope.of(context).unfocus();
-                          final now = DateTime.now();
-                          final initialDate = _birthday ?? DateTime(now.year - 18, now.month, now.day);
-                          final picked = await showDatePicker(
-                            context: context,
-                            initialDate: initialDate,
-                            firstDate: DateTime(now.year - 100),
-                            lastDate: DateTime(now.year - 10),
-                            builder: (context, child) {
-                              return Theme(
-                                data: Theme.of(context).copyWith(
-                                  colorScheme: ColorScheme.light(
-                                    primary: Colors.green[600]!,
-                                    onPrimary: Colors.white,
-                                    onSurface: Colors.black,
-                                  ),
-                                  textButtonTheme: TextButtonThemeData(
-                                    style: TextButton.styleFrom(
-                                      foregroundColor: Colors.green[600],
-                                    ),
-                                  ),
-                                ),
-                                child: child!,
-                              );
-                            },
-                          );
-                          if (picked != null) {
-                            setState(() {
-                              _birthday = picked;
-                              _birthdayString = picked.toIso8601String().split('T')[0];
-                            });
-                          }
-                        },
+                        onTap: _isEditing
+                            ? () async {
+                                FocusScope.of(context).unfocus();
+                                final now = DateTime.now();
+                                final initialDate = _birthday ?? DateTime(now.year - 18, now.month, now.day);
+                                final picked = await showDatePicker(
+                                  context: context,
+                                  initialDate: initialDate,
+                                  firstDate: DateTime(now.year - 100),
+                                  lastDate: DateTime(now.year - 10),
+                                  builder: (context, child) {
+                                    return Theme(
+                                      data: Theme.of(context).copyWith(
+                                        colorScheme: ColorScheme.light(
+                                          primary: Colors.green[600]!,
+                                          onPrimary: Colors.white,
+                                          onSurface: Colors.black,
+                                        ),
+                                        textButtonTheme: TextButtonThemeData(
+                                          style: TextButton.styleFrom(
+                                            foregroundColor: Colors.green[600],
+                                          ),
+                                        ),
+                                      ),
+                                      child: child!,
+                                    );
+                                  },
+                                );
+                                if (picked != null) {
+                                  setState(() {
+                                    _birthday = picked;
+                                    _birthdayString = picked.toIso8601String().split('T')[0];
+                                  });
+                                }
+                              }
+                            : null,
                         child: AbsorbPointer(
+                          absorbing: !_isEditing,
                           child: TextFormField(
                             controller: TextEditingController(text: _birthday != null ? _birthdayString : ''),
                             readOnly: true,
+                            style: GoogleFonts.montserrat(fontSize: 12),
                             decoration: InputDecoration(
                               labelText: 'Birthday',
-                              labelStyle: GoogleFonts.montserrat(color: Colors.grey[600]),
+                              labelStyle: GoogleFonts.montserrat(fontSize: 12, color: Colors.grey[600]),
                               prefixIcon: const Icon(Icons.cake_outlined),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               hintText: 'Select your birthday',
+                              hintStyle: GoogleFonts.montserrat(fontSize: 10, color: Colors.grey[400]),
+                              helperText: null,
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                             ),
                             validator: (value) {
                               if (_birthday == null) {
@@ -318,48 +366,21 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                       const SizedBox(height: 16),
                       TextFormField(
                         controller: _hobbiesController,
+                        enabled: _isEditing,
+                        style: GoogleFonts.montserrat(fontSize: 12),
                         maxLines: 2,
                         decoration: InputDecoration(
                           labelText: 'Hobbies & Interests',
-                          labelStyle: GoogleFonts.montserrat(color: Colors.grey[600]),
+                          labelStyle: GoogleFonts.montserrat(fontSize: 12, color: Colors.grey[600]),
                           prefixIcon: const Icon(Icons.interests_outlined),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
                           hintText: 'Share your hobbies and interests',
-                          hintStyle: GoogleFonts.montserrat(color: Colors.grey[400]),
+                          hintStyle: GoogleFonts.montserrat(fontSize: 10, color: Colors.grey[400]),
                           helperText: 'Tell us what you enjoy doing in your free time',
-                          helperStyle: GoogleFonts.montserrat(color: Colors.grey[600]),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      SizedBox(
-                        height: 50,
-                        child: ElevatedButton(
-                          onPressed: _isLoading ? null : _saveProfile,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green[600],
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(24),
-                            ),
-                          ),
-                          child: _isLoading
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                  ),
-                                )
-                              : Text(
-                                  'Save Changes',
-                                  style: GoogleFonts.montserrat(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
+                          helperStyle: GoogleFonts.montserrat(fontSize: 10, color: Colors.grey[600]),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         ),
                       ),
                       const SizedBox(height: 24),
@@ -368,6 +389,50 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                 ),
               ),
             ),
+      ),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+          child: SizedBox(
+            height: 50,
+            child: ElevatedButton(
+              onPressed: _isLoading
+                  ? null
+                  : () {
+                      if (_isEditing) {
+                        _saveProfile();
+                      } else {
+                        setState(() {
+                          _isEditing = true;
+                        });
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green[600],
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24),
+                ),
+              ),
+              child: _isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : Text(
+                      _isEditing ? 'Save' : 'Edit',
+                      style: GoogleFonts.montserrat(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+            ),
+          ),
+        ),
       ),
     );
   }
