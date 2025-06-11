@@ -6,6 +6,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import '../../services/user_profile_service.dart';
+import 'package:provider/provider.dart';
+import '../../services/user_profile_notifier.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:path_provider/path_provider.dart';
+import 'user_avatar.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ProfileSettingsPage extends StatefulWidget {
   const ProfileSettingsPage({super.key});
@@ -40,6 +46,8 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
   Future<void> _loadProfile() async {
     setState(() => _isFetching = true);
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedAvatarPath = prefs.getString('local_avatar_path');
       final profile = await UserProfileService.fetchProfile();
       if (profile != null) {
         setState(() {
@@ -49,7 +57,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
           _jobTitleController.text = profile.jobTitle;
           _phoneController.text = profile.phone;
           _hobbiesController.text = profile.hobbies ?? '';
-          _avatarPath = null;
+          _avatarPath = (savedAvatarPath != null && File(savedAvatarPath).existsSync()) ? savedAvatarPath : null;
           _profileAvatarUrl = profile.avatarUrl;
           if (profile.birthday != null) {
             _birthdayString = profile.birthday;
@@ -76,9 +84,70 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
+      // Compress the image
+      final dir = await getTemporaryDirectory();
+      final targetPath = '${dir.path}/avatar_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final compressedFile = await FlutterImageCompress.compressAndGetFile(
+        pickedFile.path,
+        targetPath,
+        quality: 70,
+        minWidth: 300,
+        minHeight: 300,
+        format: CompressFormat.jpeg,
+      );
+      final localPath = compressedFile?.path ?? pickedFile.path;
       setState(() {
-        _avatarPath = pickedFile.path;
+        _avatarPath = localPath;
       });
+      // Persist the local path
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('local_avatar_path', localPath);
+      // Update notifier with local avatar path
+      if (mounted) {
+        Provider.of<UserProfileNotifier>(context, listen: false).setLocalAvatarPath(localPath);
+      }
+      // Start background upload
+      _uploadAvatarInBackground(localPath);
+    }
+  }
+
+  Future<void> _uploadAvatarInBackground(String imagePath) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    try {
+      final avatarUrl = await UserProfileService.uploadAvatar(user.uid, imagePath);
+      // Update Firestore with new avatar URL
+      final profile = await UserProfileService.fetchProfile();
+      if (profile != null) {
+        final updatedProfile = UserProfile(
+          uid: profile.uid,
+          displayName: profile.displayName,
+          email: profile.email,
+          company: profile.company,
+          jobTitle: profile.jobTitle,
+          phone: profile.phone,
+          birthday: profile.birthday,
+          hobbies: profile.hobbies,
+          avatarUrl: avatarUrl,
+        );
+        await UserProfileService.saveProfile(updatedProfile);
+        // Update notifier
+        if (mounted) {
+          Provider.of<UserProfileNotifier>(context, listen: false).updateProfile(
+            avatarUrl: avatarUrl,
+            displayName: profile.displayName,
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to upload avatar. Please try again.', style: GoogleFonts.montserrat(fontSize: 12)),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -97,26 +166,8 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) throw Exception('User not logged in');
-      String? avatarUrl;
-      if (_avatarPath != null) {
-        try {
-          avatarUrl = await UserProfileService.uploadAvatar(user.uid, _avatarPath!);
-        } catch (e) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Failed to upload avatar. Please try again.', style: GoogleFonts.montserrat(fontSize: 12)),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-          setState(() => _isLoading = false);
-          return;
-        }
-      } else {
-        final existing = await UserProfileService.fetchProfile();
-        avatarUrl = existing?.avatarUrl;
-      }
+      final existing = await UserProfileService.fetchProfile();
+      final avatarUrl = existing?.avatarUrl;
       final profile = UserProfile(
         uid: user.uid,
         displayName: _nameController.text.trim(),
@@ -129,6 +180,10 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
         avatarUrl: avatarUrl,
       );
       await UserProfileService.saveProfile(profile);
+      Provider.of<UserProfileNotifier>(context, listen: false).updateProfile(
+        avatarUrl: avatarUrl,
+        displayName: _nameController.text.trim(),
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -184,19 +239,30 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                       const SizedBox(height: 24),
                       Center(
                         child: GestureDetector(
-                          onTap: _isEditing ? _pickAvatar : null,
-                          child: CircleAvatar(
-                            radius: 50,
-                            backgroundColor: Colors.grey[200],
-                            backgroundImage: _getAvatarImage(),
-                            child: (_avatarPath == null && (_profileAvatarUrl == null || _profileAvatarUrl!.isEmpty))
-                                ? Text(
-                                    _nameController.text.isNotEmpty
-                                        ? _nameController.text.trim().split(' ').map((e) => e[0]).take(2).join().toUpperCase()
-                                        : 'AT',
-                                    style: GoogleFonts.montserrat(fontSize: 32, color: Colors.grey[600]),
-                                  )
-                                : null,
+                          onTap: _pickAvatar,
+                          child: Stack(
+                            children: [
+                              UserAvatar(
+                                localPath: _avatarPath,
+                                networkUrl: _profileAvatarUrl,
+                                initials: _nameController.text.isNotEmpty
+                                    ? _nameController.text.trim().split(' ').map((e) => e[0]).take(2).join().toUpperCase()
+                                    : 'U',
+                                radius: 50,
+                              ),
+                              Positioned(
+                                right: 0,
+                                bottom: 0,
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green[600],
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),

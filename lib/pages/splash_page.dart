@@ -47,37 +47,86 @@ class _SplashPageState extends State<SplashPage> {
       if (kDebugMode) {
         print('📡 Attempting to call ipapi.co...');
       }
+      
+      // Add a small delay to avoid rate limiting
+      await Future.delayed(const Duration(milliseconds: 500));
+      
       // Country
       final countryRes = await http.get(
         Uri.parse('https://ipapi.co/country'),
         headers: {
-          'User-Agent': 'WorkApp/1.0',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
           'Accept': 'text/plain',
         },
       ).timeout(const Duration(seconds: 5));
+      
+      if (kDebugMode) {
+        print('📡 Country API Response:');
+        print('   • Status Code: ${countryRes.statusCode}');
+        print('   • Response Body: ${countryRes.body}');
+      }
+      
       if (countryRes.statusCode == 200) {
         final code = countryRes.body.trim();
         if (code.length == 2) {
           countryCode = code;
         }
       }
+
+      // Add another small delay between requests
+      await Future.delayed(const Duration(milliseconds: 500));
+      
       // Time zone
       final tzRes = await http.get(
         Uri.parse('https://ipapi.co/timezone'),
         headers: {
-          'User-Agent': 'WorkApp/1.0',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
           'Accept': 'text/plain',
         },
       ).timeout(const Duration(seconds: 5));
+      
+      if (kDebugMode) {
+        print('📡 Timezone API Response:');
+        print('   • Status Code: ${tzRes.statusCode}');
+        print('   • Response Body: ${tzRes.body}');
+      }
+      
       if (tzRes.statusCode == 200) {
         final tz = tzRes.body.trim();
         if (tz.isNotEmpty) {
           timeZone = tz;
         }
       }
+
+      // If either request failed, try to get timezone from the system
+      if (timeZone == 'UTC') {
+        try {
+          final now = DateTime.now();
+          final offset = now.timeZoneOffset;
+          final hours = offset.inHours;
+          final minutes = offset.inMinutes.remainder(60).abs();
+          final sign = hours >= 0 ? '+' : '-';
+          timeZone = 'GMT$sign${hours.abs().toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}';
+          if (kDebugMode) {
+            print('📱 Using system timezone: $timeZone');
+          }
+        } catch (e) {
+          if (kDebugMode) {
+            print('❌ Error getting system timezone: $e');
+          }
+        }
+      }
+
       await prefs.setString('cached_country_code', countryCode);
       await prefs.setString('cached_time_zone', timeZone);
       await prefs.setInt('cached_country_timestamp', now);
+      
+      if (kDebugMode) {
+        print('✅ Final results:');
+        print('   • Country: $countryCode');
+        print('   • Timezone: $timeZone');
+      }
+      
     } catch (e) {
       if (kDebugMode) {
         print('❌ Error fetching country/timezone: $e');

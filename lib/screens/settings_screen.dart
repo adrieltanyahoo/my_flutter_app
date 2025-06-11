@@ -3,6 +3,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../services/permission_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../pages/settings/user_avatar.dart';
+import '../services/user_profile_service.dart';
+import 'package:provider/provider.dart';
+import '../services/user_profile_notifier.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -16,11 +20,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _contactsGranted = false;
   bool _mediaGranted = false;
   bool _isLoading = false;
+  String? _avatarUrl;
+  String _displayName = '';
 
   @override
   void initState() {
     super.initState();
     _refreshPermissions();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    try {
+      final profile = await UserProfileService.fetchProfile();
+      if (profile != null) {
+        setState(() {
+          _avatarUrl = profile.avatarUrl;
+          _displayName = profile.displayName;
+        });
+      }
+    } catch (e) {
+      print('❌ Error loading profile: $e');
+    }
   }
 
   Future<void> _refreshPermissions() async {
@@ -73,15 +94,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
             padding: const EdgeInsets.symmetric(vertical: 24.0),
             child: GestureDetector(
               onTap: () => Navigator.pushNamed(context, '/edit-avatar'),
-              child: Column(
-                children: [
-                  CircleAvatar(
-                    radius: 36,
-                    child: Text('U', style: GoogleFonts.montserrat(fontSize: 32, fontWeight: FontWeight.bold)),
-                  ),
-                  const SizedBox(height: 8),
-                  Text('User', style: GoogleFonts.montserrat(fontSize: 18, fontWeight: FontWeight.w600)),
-                ],
+              child: Consumer<UserProfileNotifier>(
+                builder: (context, notifier, _) {
+                  return Column(
+                    children: [
+                      UserAvatar(
+                        networkUrl: notifier.avatarUrl,
+                        initials: notifier.displayName.isNotEmpty
+                            ? notifier.displayName.trim().split(' ').map((e) => e[0]).take(2).join().toUpperCase()
+                            : 'U',
+                        radius: 36,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        notifier.displayName.isNotEmpty ? notifier.displayName : 'User',
+                        style: GoogleFonts.montserrat(fontSize: 18, fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
           ),

@@ -11,6 +11,10 @@ import '../services/user_profile_service.dart';
 import 'package:provider/provider.dart';
 import '../services/user_profile_notifier.dart';
 import 'settings/user_avatar.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:timezone/data/latest_all.dart' as tzdata;
+import 'package:timezone/timezone.dart' as tz;
 
 class ProfileSetupPage extends StatefulWidget {
   const ProfileSetupPage({super.key});
@@ -35,32 +39,72 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
   DateTime? _birthday;
   String? _birthdayString;
   bool _isFetching = false;
-
-  // Add a list of IATA time zones (sample, you can expand as needed)
-  static const List<String> iataTimeZones = [
-    'UTC',
-    'Asia/Kuala_Lumpur',
-    'Asia/Singapore',
-    'Asia/Tokyo',
-    'Asia/Shanghai',
-    'Asia/Bangkok',
-    'Europe/London',
-    'Europe/Paris',
-    'Europe/Berlin',
-    'America/New_York',
-    'America/Los_Angeles',
-    'America/Chicago',
-    'America/Sao_Paulo',
-    'Australia/Sydney',
-    'Africa/Johannesburg',
-    // ... add more as needed
-  ];
+  List<String> _ianaTimeZones = [];
+  Map<String, String> _ianaTimeZoneLabels = {};
 
   @override
   void initState() {
     super.initState();
+    _initializeTimeZones();
     _loadTimeZone();
     _loadProfile();
+  }
+
+  Future<void> _initializeTimeZones() async {
+    tzdata.initializeTimeZones();
+    final locations = tz.timeZoneDatabase.locations;
+    final now = DateTime.now().toUtc();
+    
+    // Create a list of timezone entries with their offsets
+    final List<Map<String, dynamic>> timezoneEntries = [];
+    
+    for (final name in locations.keys) {
+      try {
+        final location = tz.getLocation(name);
+        final offsetMilliseconds = location.currentTimeZone.offset;
+        final offsetSeconds = offsetMilliseconds ~/ 1000;
+        final totalMinutes = offsetSeconds ~/ 60;
+        
+        timezoneEntries.add({
+          'name': name,
+          'offset': totalMinutes,
+          'label': _friendlyTimeZoneLabel(name, now)
+        });
+      } catch (_) {
+        // Skip invalid timezones
+      }
+    }
+    
+    // Sort by offset (chronologically)
+    timezoneEntries.sort((a, b) => a['offset'].compareTo(b['offset']));
+    
+    setState(() {
+      _ianaTimeZones = timezoneEntries.map((e) => e['name'] as String).toList();
+      _ianaTimeZoneLabels = {
+        for (final entry in timezoneEntries)
+          entry['name'] as String: entry['label'] as String
+      };
+    });
+  }
+
+  String _friendlyTimeZoneLabel(String name, DateTime nowUtc) {
+    try {
+      final location = tz.getLocation(name);
+      final offsetMilliseconds = location.currentTimeZone.offset;
+      final offsetSeconds = offsetMilliseconds ~/ 1000;
+
+      final totalMinutes = offsetSeconds ~/ 60;
+      final sign = totalMinutes >= 0 ? '+' : '-';
+      final absMinutes = totalMinutes.abs();
+      final hours = absMinutes ~/ 60;
+      final minutes = absMinutes % 60;
+
+      final offsetStr = 'GMT$sign${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}';
+      final city = name.split('/').last.replaceAll('_', ' ');
+      return '($offsetStr) $city';
+    } catch (_) {
+      return name;
+    }
   }
 
   Future<void> _loadTimeZone() async {
@@ -80,6 +124,8 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
   Future<void> _loadProfile() async {
     setState(() => _isFetching = true);
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedAvatarPath = prefs.getString('local_avatar_path');
       final profile = await UserProfileService.fetchProfile();
       if (profile != null) {
         setState(() {
@@ -89,7 +135,7 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
           _jobTitleController.text = profile.jobTitle;
           _phoneController.text = profile.phone;
           _hobbiesController.text = profile.hobbies ?? '';
-          _avatarPath = null;
+          _avatarPath = (savedAvatarPath != null && File(savedAvatarPath).existsSync()) ? savedAvatarPath : null;
           _profileAvatarUrl = profile.avatarUrl;
           if (profile.birthday != null) {
             _birthdayString = profile.birthday;
@@ -131,15 +177,61 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
     if (args != null) {
       String prefillPhoneNumber = args['phoneNumber'] ?? '';
       String uid = args['uid'] ?? '';
+      String detectedTimeZone = args['timeZone'] ?? '';
 
       if (kDebugMode) {
         print('📲 Pre-filling profile setup:');
         print('   • UID: $uid');
         print('   • Phone: $prefillPhoneNumber');
+        print('   • Timezone: $detectedTimeZone');
       }
 
       // Set this into your controllers or state
       _phoneController.text = prefillPhoneNumber;
+      
+      // Restore: If detected timezone is in the list, set it directly
+      if (detectedTimeZone.isNotEmpty && _ianaTimeZones.isNotEmpty) {
+        if (_ianaTimeZones.contains(detectedTimeZone)) {
+          setState(() {
+            _timeZone = detectedTimeZone;
+          });
+          if (kDebugMode) {
+            print('📱 Direct match for timezone: $_timeZone');
+          }
+        } else {
+          // Fallback to offset-matching
+          final gmtOffset = detectedTimeZone.replaceAll('GMT', '').trim();
+          String? closestTimeZone;
+          int? minDifference;
+          for (final tzName in _ianaTimeZones) {
+            try {
+              final location = tz.getLocation(tzName);
+              final offsetMilliseconds = location.currentTimeZone.offset;
+              final offsetSeconds = offsetMilliseconds ~/ 1000;
+              final totalMinutes = offsetSeconds ~/ 60;
+              // Parse the detected timezone
+              final detectedHours = int.parse(gmtOffset.substring(1, 3));
+              final detectedMinutes = int.parse(gmtOffset.substring(4, 6));
+              final detectedTotalMinutes = (detectedHours * 60 + detectedMinutes) * (gmtOffset.startsWith('-') ? -1 : 1);
+              final difference = (totalMinutes - detectedTotalMinutes).abs();
+              if (minDifference == null || difference < minDifference) {
+                minDifference = difference;
+                closestTimeZone = tzName;
+              }
+            } catch (_) {
+              continue;
+            }
+          }
+          if (closestTimeZone != null) {
+            setState(() {
+              _timeZone = closestTimeZone!;
+            });
+            if (kDebugMode) {
+              print('📱 Fallback to closest timezone: $_timeZone');
+            }
+          }
+        }
+      }
     }
   }
 
@@ -147,9 +239,70 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
+      // Compress the image
+      final dir = await getTemporaryDirectory();
+      final targetPath = '${dir.path}/avatar_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final compressedFile = await FlutterImageCompress.compressAndGetFile(
+        pickedFile.path,
+        targetPath,
+        quality: 70,
+        minWidth: 300,
+        minHeight: 300,
+        format: CompressFormat.jpeg,
+      );
+      final localPath = compressedFile?.path ?? pickedFile.path;
       setState(() {
-        _avatarPath = pickedFile.path;
+        _avatarPath = localPath;
       });
+      // Persist the local path
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('local_avatar_path', localPath);
+      // Update notifier with local avatar path
+      if (mounted) {
+        Provider.of<UserProfileNotifier>(context, listen: false).setLocalAvatarPath(localPath);
+      }
+      // Start background upload
+      _uploadAvatarInBackground(localPath);
+    }
+  }
+
+  Future<void> _uploadAvatarInBackground(String imagePath) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    try {
+      final avatarUrl = await UserProfileService.uploadAvatar(user.uid, imagePath);
+      // Update Firestore with new avatar URL
+      final profile = await UserProfileService.fetchProfile();
+      if (profile != null) {
+        final updatedProfile = UserProfile(
+          uid: profile.uid,
+          displayName: profile.displayName,
+          email: profile.email,
+          company: profile.company,
+          jobTitle: profile.jobTitle,
+          phone: profile.phone,
+          birthday: profile.birthday,
+          hobbies: profile.hobbies,
+          avatarUrl: avatarUrl,
+        );
+        await UserProfileService.saveProfile(updatedProfile);
+        // Update notifier
+        if (mounted) {
+          Provider.of<UserProfileNotifier>(context, listen: false).updateProfile(
+            avatarUrl: avatarUrl,
+            displayName: profile.displayName,
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to upload avatar. Please try again.', style: GoogleFonts.montserrat()),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -159,27 +312,8 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) throw Exception('User not logged in');
-      String? avatarUrl;
-      if (_avatarPath != null) {
-        try {
-          avatarUrl = await UserProfileService.uploadAvatar(user.uid, _avatarPath!);
-        } catch (e) {
-          if (kDebugMode) print('❌ Avatar upload error: $e');
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Failed to upload avatar. Please try again.', style: GoogleFonts.montserrat()),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-          setState(() => _isLoading = false);
-          return;
-        }
-      } else {
-        final existing = await UserProfileService.fetchProfile();
-        avatarUrl = existing?.avatarUrl;
-      }
+      final existing = await UserProfileService.fetchProfile();
+      final avatarUrl = existing?.avatarUrl;
       final profile = UserProfile(
         uid: user.uid,
         displayName: _nameController.text.trim(),
@@ -192,7 +326,6 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
         avatarUrl: avatarUrl,
       );
       await UserProfileService.saveProfile(profile);
-      // Notify the UserProfileNotifier after successful save
       Provider.of<UserProfileNotifier>(context, listen: false).updateProfile(
         avatarUrl: avatarUrl,
         displayName: _nameController.text.trim(),
@@ -201,7 +334,6 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
         Navigator.pushReplacementNamed(context, '/messages');
       }
     } catch (e, st) {
-      if (kDebugMode) print('❌ Error saving profile: $e\n$st');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -265,19 +397,15 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
                           ),
                         ),
                         Positioned(
-                          bottom: 0,
                           right: 0,
+                          bottom: 0,
                           child: Container(
                             padding: const EdgeInsets.all(4),
                             decoration: BoxDecoration(
                               color: Colors.green[600],
                               shape: BoxShape.circle,
                             ),
-                            child: const Icon(
-                              Icons.camera_alt,
-                              size: 20,
-                              color: Colors.white,
-                            ),
+                            child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
                           ),
                         ),
                       ],
@@ -386,13 +514,13 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
                                 primary: Colors.green[600]!,
                                 onPrimary: Colors.white,
                                 onSurface: Colors.black,
-                              ),
+                          ),
                               textButtonTheme: TextButtonThemeData(
                                 style: TextButton.styleFrom(
                                   foregroundColor: Colors.green[600],
                                 ),
                               ),
-                            ),
+                  ),
                             child: child!,
                           );
                         },
@@ -449,6 +577,46 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     ),
                   ),
+                  const SizedBox(height: 16),
+                  // Time Zone Dropdown
+                  if (_ianaTimeZones.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16.0),
+                      child: DropdownButtonFormField<String>(
+                        value: _timeZone.isNotEmpty && _ianaTimeZones.contains(_timeZone) ? _timeZone : _ianaTimeZones.first,
+                        items: _ianaTimeZones.map((tzName) => DropdownMenuItem(
+                          value: tzName,
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 300),
+                            child: Text(
+                              _ianaTimeZoneLabels[tzName] ?? tzName,
+                              style: GoogleFonts.montserrat(fontSize: 12, color: Colors.black),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        )).toList(),
+                        onChanged: (value) async {
+                          setState(() {
+                            _timeZone = value!;
+                          });
+                          final prefs = await SharedPreferences.getInstance();
+                          await prefs.setString('cached_time_zone', _timeZone);
+                        },
+                        decoration: InputDecoration(
+                          labelText: 'Time Zone',
+                          labelStyle: GoogleFonts.montserrat(fontSize: 12, color: Colors.grey[600]),
+                          prefixIcon: const Icon(Icons.access_time),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        ),
+                        style: GoogleFonts.montserrat(fontSize: 12, color: Colors.black),
+                        icon: const Icon(Icons.check, color: Colors.green, size: 20),
+                        dropdownColor: Colors.white,
+                        isExpanded: true,
+                      ),
+                    ),
                   const SizedBox(height: 24),
                   // Save Changes Button
                   SizedBox(
