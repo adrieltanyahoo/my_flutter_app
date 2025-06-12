@@ -125,7 +125,7 @@ class _LanguageRegionPageState extends State<LanguageRegionPage> {
     final locations = tz.timeZoneDatabase.locations;
     final now = DateTime.now().toUtc();
     
-    // Create a list of timezone entries with their offsets
+    // Create a list of timezone entries with their offsets (no deduplication)
     final List<Map<String, dynamic>> timezoneEntries = [];
     
     for (final name in locations.keys) {
@@ -150,39 +150,6 @@ class _LanguageRegionPageState extends State<LanguageRegionPage> {
     
     if (kDebugMode) {
       print('\n📋 YOUR ACTUAL DROPDOWN LIST:');
-      
-      // Group timezones by their offset
-      Map<int, List<Map<String, dynamic>>> offsetGroups = {};
-      for (var entry in timezoneEntries) {
-        final offset = entry['offset'] as int;
-        if (!offsetGroups.containsKey(offset)) {
-          offsetGroups[offset] = [];
-        }
-        offsetGroups[offset]!.add(entry);
-      }
-      
-      // Print duplicates (groups with more than one entry)
-      print('\n🔍 DUPLICATE TIMEZONES (same offset):');
-      offsetGroups.forEach((offset, entries) {
-        if (entries.length > 1) {
-          print('\nOffset: GMT${offset >= 0 ? '+' : ''}${(offset / 60).toStringAsFixed(2)}');
-          for (var entry in entries) {
-            print('  • ${entry['label']}');
-          }
-        }
-      });
-
-      // Check for African timezones
-      print('\n🔍 African timezones:');
-      for (var i = 0; i < timezoneEntries.length; i++) {
-        final name = timezoneEntries[i]['name'] as String;
-        if (name.startsWith('Africa/')) {
-          print('${i + 1}. ${timezoneEntries[i]['label']}');
-        }
-      }
-      
-      // Print complete list
-      print('\n📋 Complete list:');
       for (var i = 0; i < timezoneEntries.length; i++) {
         print('${i + 1}. ${timezoneEntries[i]['label']}');
       }
