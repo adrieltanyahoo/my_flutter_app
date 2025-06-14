@@ -234,33 +234,78 @@ class _LanguageRegionPageState extends State<LanguageRegionPage> {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
-              Card(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                elevation: 2,
-                child: Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.language, size: 24),
-                          const SizedBox(width: 8),
-                          Text('Language', style: GoogleFonts.montserrat(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black)),
-                        ],
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.language, size: 24, color: Colors.green),
+                        const SizedBox(width: 8),
+                        Text('Language', style: GoogleFonts.montserrat(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black)),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text('App interface language', style: GoogleFonts.montserrat(fontSize: 12, color: Colors.grey[700], fontWeight: FontWeight.w400)),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: _selectedLanguage,
+                      items: [
+                        DropdownMenuItem(
+                          value: 'English',
+                          child: Text('English', style: GoogleFonts.montserrat(fontSize: 12, color: Colors.black)),
+                        ),
+                      ],
+                      onChanged: null, // Not editable
+                      decoration: InputDecoration(
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       ),
-                      const SizedBox(height: 8),
-                      Text('App interface language', style: GoogleFonts.montserrat(fontSize: 12, color: Colors.grey[700], fontWeight: FontWeight.w400)),
-                      const SizedBox(height: 12),
+                      style: GoogleFonts.montserrat(fontSize: 12, color: Colors.black),
+                      icon: const Icon(Icons.check, color: Colors.green, size: 20),
+                      dropdownColor: Colors.white,
+                      disabledHint: Text('English', style: GoogleFonts.montserrat(fontSize: 12, color: Colors.black)),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.access_time, size: 24, color: Colors.green),
+                        const SizedBox(width: 8),
+                        Text('Time Zone', style: GoogleFonts.montserrat(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black)),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text('Select your time zone', style: GoogleFonts.montserrat(fontSize: 12, color: Colors.grey[700], fontWeight: FontWeight.w400)),
+                    const SizedBox(height: 12),
+                    if (_ianaTimeZones.isNotEmpty)
                       DropdownButtonFormField<String>(
-                        value: _selectedLanguage,
-                        items: [
-                          DropdownMenuItem(
-                            value: 'English',
-                            child: Text('English', style: GoogleFonts.montserrat(fontSize: 12, color: Colors.black)),
+                        value: _selectedTimeZone != null && _ianaTimeZones.contains(_selectedTimeZone) ? _selectedTimeZone : _ianaTimeZones.first,
+                        items: _ianaTimeZones.map((tzName) => DropdownMenuItem(
+                          value: tzName,
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 300),
+                            child: Text(
+                              _ianaTimeZoneLabels[tzName] ?? tzName,
+                              style: GoogleFonts.montserrat(fontSize: 12, color: Colors.black),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
-                        ],
-                        onChanged: null, // Not editable
+                        )).toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedTimeZone = value;
+                          });
+                        },
                         decoration: InputDecoration(
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                           isDense: true,
@@ -269,62 +314,9 @@ class _LanguageRegionPageState extends State<LanguageRegionPage> {
                         style: GoogleFonts.montserrat(fontSize: 12, color: Colors.black),
                         icon: const Icon(Icons.check, color: Colors.green, size: 20),
                         dropdownColor: Colors.white,
-                        disabledHint: Text('English', style: GoogleFonts.montserrat(fontSize: 12, color: Colors.black)),
+                        isExpanded: true,
                       ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-              Card(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                elevation: 2,
-                child: Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.access_time, size: 24),
-                          const SizedBox(width: 8),
-                          Text('Time Zone', style: GoogleFonts.montserrat(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black)),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text('Select your time zone', style: GoogleFonts.montserrat(fontSize: 12, color: Colors.grey[700], fontWeight: FontWeight.w400)),
-                      const SizedBox(height: 12),
-                      if (_ianaTimeZones.isNotEmpty)
-                        DropdownButtonFormField<String>(
-                          value: _selectedTimeZone != null && _ianaTimeZones.contains(_selectedTimeZone) ? _selectedTimeZone : _ianaTimeZones.first,
-                          items: _ianaTimeZones.map((tzName) => DropdownMenuItem(
-                            value: tzName,
-                            child: ConstrainedBox(
-                              constraints: const BoxConstraints(maxWidth: 300),
-                              child: Text(
-                                _ianaTimeZoneLabels[tzName] ?? tzName,
-                                style: GoogleFonts.montserrat(fontSize: 12, color: Colors.black),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          )).toList(),
-                          onChanged: (value) {
-                            setState(() {
-                              _selectedTimeZone = value;
-                            });
-                          },
-                          decoration: InputDecoration(
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                            isDense: true,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          ),
-                          style: GoogleFonts.montserrat(fontSize: 12, color: Colors.black),
-                          icon: const Icon(Icons.check, color: Colors.green, size: 20),
-                          dropdownColor: Colors.white,
-                          isExpanded: true,
-                        ),
-                    ],
-                  ),
+                  ],
                 ),
               ),
               const SizedBox(height: 32),

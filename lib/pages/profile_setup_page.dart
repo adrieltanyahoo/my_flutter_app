@@ -364,292 +364,288 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
         child: _isFetching
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const SizedBox(height: 60),
-                  Text(
-                    'Setup Your Profile',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.montserrat(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-                  // Profile Picture
-                  Center(
-                    child: Stack(
-                      children: [
-                        GestureDetector(
-                          onTap: _pickAvatar,
-                          child: UserAvatar(
-                            localPath: _avatarPath,
-                            networkUrl: _profileAvatarUrl,
-                            initials: _nameController.text.isNotEmpty
-                                ? _nameController.text.trim().split(' ').map((e) => e[0]).take(2).join().toUpperCase()
-                                : 'U',
-                            radius: 50,
-                          ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const SizedBox(height: 60),
+                      Text(
+                        'Setup Your Profile',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.montserrat(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w600,
                         ),
-                        Positioned(
-                          right: 0,
-                          bottom: 0,
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              color: Colors.green[600],
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  // Display Name
-                  TextFormField(
-                    controller: _nameController,
-                    style: GoogleFonts.montserrat(fontSize: 12),
-                    decoration: InputDecoration(
-                      labelText: 'Display Name',
-                      labelStyle: GoogleFonts.montserrat(fontSize: 12, color: Colors.grey[600]),
-                      prefixIcon: const Icon(Icons.person_outline),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
                       ),
-                      hintText: 'Enter your name',
-                      hintStyle: GoogleFonts.montserrat(fontSize: 10, color: Colors.grey[400]),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter your name';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  // Email
-                  TextFormField(
-                    controller: _emailController,
-                    style: GoogleFonts.montserrat(fontSize: 12),
-                    decoration: InputDecoration(
-                      labelText: 'Email',
-                      labelStyle: GoogleFonts.montserrat(fontSize: 12, color: Colors.grey[600]),
-                      prefixIcon: const Icon(Icons.email_outlined),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  // Company Name
-                  TextFormField(
-                    controller: _companyController,
-                    style: GoogleFonts.montserrat(fontSize: 12),
-                    decoration: InputDecoration(
-                      labelText: 'Company Name',
-                      labelStyle: GoogleFonts.montserrat(fontSize: 12, color: Colors.grey[600]),
-                      prefixIcon: const Icon(Icons.apartment_outlined),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  // Job Title
-                  TextFormField(
-                    controller: _jobTitleController,
-                    style: GoogleFonts.montserrat(fontSize: 12),
-                    decoration: InputDecoration(
-                      labelText: 'Job Title',
-                      labelStyle: GoogleFonts.montserrat(fontSize: 12, color: Colors.grey[600]),
-                      prefixIcon: const Icon(Icons.work_outline),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  // Phone Number
-                  TextFormField(
-                    controller: _phoneController,
-                    enabled: false,
-                    style: GoogleFonts.montserrat(fontSize: 12),
-                    decoration: InputDecoration(
-                      labelText: 'Phone Number',
-                      labelStyle: GoogleFonts.montserrat(fontSize: 12, color: Colors.grey[600]),
-                      prefixIcon: const Icon(Icons.phone_outlined),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  // Birthday
-                  GestureDetector(
-                    onTap: () async {
-                      FocusScope.of(context).unfocus();
-                      final now = DateTime.now();
-                      final initialDate = _birthday ?? DateTime(now.year - 18, now.month, now.day);
-                      final picked = await showDatePicker(
-                        context: context,
-                        initialDate: initialDate,
-                        firstDate: DateTime(now.year - 100),
-                        lastDate: DateTime(now.year - 10),
-                        builder: (context, child) {
-                          return Theme(
-                            data: Theme.of(context).copyWith(
-                              colorScheme: ColorScheme.light(
-                                primary: Colors.green[600]!,
-                                onPrimary: Colors.white,
-                                onSurface: Colors.black,
-                          ),
-                              textButtonTheme: TextButtonThemeData(
-                                style: TextButton.styleFrom(
-                                  foregroundColor: Colors.green[600],
-                                ),
+                      const SizedBox(height: 32),
+                      // Profile Picture
+                      Center(
+                        child: Stack(
+                          children: [
+                            GestureDetector(
+                              onTap: _pickAvatar,
+                              child: UserAvatar(
+                                localPath: _avatarPath,
+                                networkUrl: _profileAvatarUrl,
+                                initials: _nameController.text.isNotEmpty
+                                    ? _nameController.text.trim().split(' ').map((e) => e[0]).take(2).join().toUpperCase()
+                                    : 'U',
+                                radius: 50,
                               ),
-                  ),
-                            child: child!,
-                          );
-                        },
-                      );
-                      if (picked != null) {
-                        setState(() {
-                          _birthday = picked;
-                          _birthdayString = picked.toIso8601String().split('T')[0];
-                        });
-                      }
-                    },
-                    child: AbsorbPointer(
-                      child: TextFormField(
-                        controller: TextEditingController(text: _birthday != null ? _birthdayString : ''),
-                        readOnly: true,
+                            ),
+                            Positioned(
+                              right: 0,
+                              bottom: 0,
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: Colors.green[600],
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      // Display Name
+                      TextFormField(
+                        controller: _nameController,
                         style: GoogleFonts.montserrat(fontSize: 12),
                         decoration: InputDecoration(
-                          labelText: 'Birthday',
+                          labelText: 'Display Name',
                           labelStyle: GoogleFonts.montserrat(fontSize: 12, color: Colors.grey[600]),
-                          prefixIcon: const Icon(Icons.cake_outlined),
+                          prefixIcon: const Icon(Icons.person_outline),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          hintText: 'Select your birthday',
+                          hintText: 'Enter your name',
                           hintStyle: GoogleFonts.montserrat(fontSize: 10, color: Colors.grey[400]),
                           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         ),
                         validator: (value) {
-                          if (_birthday == null) {
-                            return 'Please select your birthday';
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter your name';
                           }
                           return null;
                         },
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  // Hobbies & Interests
-                  TextFormField(
-                    controller: _hobbiesController,
-                    style: GoogleFonts.montserrat(fontSize: 12),
-                    maxLines: 2,
-                    decoration: InputDecoration(
-                      labelText: 'Hobbies & Interests',
-                      labelStyle: GoogleFonts.montserrat(fontSize: 12, color: Colors.grey[600]),
-                      prefixIcon: const Icon(Icons.interests_outlined),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      hintText: 'Share your hobbies and interests',
-                      hintStyle: GoogleFonts.montserrat(fontSize: 10, color: Colors.grey[400]),
-                      helperText: 'Tell us what you enjoy doing in your free time',
-                      helperStyle: GoogleFonts.montserrat(fontSize: 10, color: Colors.grey[600]),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  // Time Zone Dropdown
-                  if (_ianaTimeZones.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 16.0),
-                      child: DropdownButtonFormField<String>(
-                        value: _timeZone.isNotEmpty && _ianaTimeZones.contains(_timeZone) ? _timeZone : _ianaTimeZones.first,
-                        items: _ianaTimeZones.map((tzName) => DropdownMenuItem(
-                          value: tzName,
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 300),
-                            child: Text(
-                              _ianaTimeZoneLabels[tzName] ?? tzName,
-                              style: GoogleFonts.montserrat(fontSize: 12, color: Colors.black),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        )).toList(),
-                        onChanged: (value) async {
-                          setState(() {
-                            _timeZone = value!;
-                          });
-                          final prefs = await SharedPreferences.getInstance();
-                          await prefs.setString('cached_time_zone', _timeZone);
-                        },
+                      const SizedBox(height: 16),
+                      // Email
+                      TextFormField(
+                        controller: _emailController,
+                        style: GoogleFonts.montserrat(fontSize: 12),
                         decoration: InputDecoration(
-                          labelText: 'Time Zone',
+                          labelText: 'Email',
                           labelStyle: GoogleFonts.montserrat(fontSize: 12, color: Colors.grey[600]),
-                          prefixIcon: const Icon(Icons.access_time),
+                          prefixIcon: const Icon(Icons.email_outlined),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
                           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         ),
-                        style: GoogleFonts.montserrat(fontSize: 12, color: Colors.black),
-                        icon: const Icon(Icons.check, color: Colors.green, size: 20),
-                        dropdownColor: Colors.white,
-                        isExpanded: true,
                       ),
-                    ),
-                  const SizedBox(height: 24),
-                  // Save Changes Button
-                  SizedBox(
-                    height: 50,
-                    child: ElevatedButton(
-                      onPressed: _isLoading ? null : _completeSetup,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green[600],
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(24),
+                      const SizedBox(height: 16),
+                      // Company Name
+                      TextFormField(
+                        controller: _companyController,
+                        style: GoogleFonts.montserrat(fontSize: 12),
+                        decoration: InputDecoration(
+                          labelText: 'Company Name',
+                          labelStyle: GoogleFonts.montserrat(fontSize: 12, color: Colors.grey[600]),
+                          prefixIcon: const Icon(Icons.apartment_outlined),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         ),
                       ),
-                      child: _isLoading
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      const SizedBox(height: 16),
+                      // Job Title
+                      TextFormField(
+                        controller: _jobTitleController,
+                        style: GoogleFonts.montserrat(fontSize: 12),
+                        decoration: InputDecoration(
+                          labelText: 'Job Title',
+                          labelStyle: GoogleFonts.montserrat(fontSize: 12, color: Colors.grey[600]),
+                          prefixIcon: const Icon(Icons.work_outline),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      // Phone Number
+                      TextFormField(
+                        controller: _phoneController,
+                        enabled: false,
+                        style: GoogleFonts.montserrat(fontSize: 12),
+                        decoration: InputDecoration(
+                          labelText: 'Phone Number',
+                          labelStyle: GoogleFonts.montserrat(fontSize: 12, color: Colors.grey[600]),
+                          prefixIcon: const Icon(Icons.phone_outlined),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      // Birthday
+                      GestureDetector(
+                        onTap: () async {
+                          FocusScope.of(context).unfocus();
+                          final now = DateTime.now();
+                          final initialDate = _birthday ?? DateTime(now.year - 18, now.month, now.day);
+                          final picked = await showDatePicker(
+                            context: context,
+                            initialDate: initialDate,
+                            firstDate: DateTime(now.year - 100),
+                            lastDate: DateTime(now.year - 10),
+                            builder: (context, child) {
+                              return Theme(
+                                data: Theme.of(context).copyWith(
+                                  colorScheme: ColorScheme.light(
+                                    primary: Colors.green[600]!,
+                                    onPrimary: Colors.white,
+                                    onSurface: Colors.black,
+                                  ),
+                                  textButtonTheme: TextButtonThemeData(
+                                    style: TextButton.styleFrom(
+                                      foregroundColor: Colors.green[600],
+                                    ),
+                                  ),
+                                ),
+                                child: child!,
+                              );
+                            },
+                          );
+                          if (picked != null) {
+                            setState(() {
+                              _birthday = picked;
+                              _birthdayString = picked.toIso8601String().split('T')[0];
+                            });
+                          }
+                        },
+                        child: AbsorbPointer(
+                          child: TextFormField(
+                            controller: TextEditingController(text: _birthday != null ? _birthdayString : ''),
+                            readOnly: true,
+                            style: GoogleFonts.montserrat(fontSize: 12),
+                            decoration: InputDecoration(
+                              labelText: 'Birthday',
+                              labelStyle: GoogleFonts.montserrat(fontSize: 12, color: Colors.grey[600]),
+                              prefixIcon: const Icon(Icons.cake_outlined),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
                               ),
-                            )
-                          : Text(
-                              'Save Changes',
-                              style: GoogleFonts.montserrat(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                              ),
+                              hintText: 'Select your birthday',
+                              hintStyle: GoogleFonts.montserrat(fontSize: 10, color: Colors.grey[400]),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                             ),
-                    ),
+                            validator: (value) {
+                              if (_birthday == null) {
+                                return 'Please select your birthday';
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      // Hobbies & Interests
+                      TextFormField(
+                        controller: _hobbiesController,
+                        style: GoogleFonts.montserrat(fontSize: 12),
+                        maxLines: 2,
+                        decoration: InputDecoration(
+                          labelText: 'Hobbies & Interests',
+                          labelStyle: GoogleFonts.montserrat(fontSize: 12, color: Colors.grey[600]),
+                          prefixIcon: const Icon(Icons.interests_outlined),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          hintText: 'Share your hobbies and interests',
+                          hintStyle: GoogleFonts.montserrat(fontSize: 10, color: Colors.grey[400]),
+                          helperText: 'Tell us what you enjoy doing in your free time',
+                          helperStyle: GoogleFonts.montserrat(fontSize: 10, color: Colors.grey[600]),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      // Time Zone Dropdown
+                      if (_ianaTimeZones.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 16.0),
+                          child: DropdownButtonFormField<String>(
+                            value: _timeZone.isNotEmpty && _ianaTimeZones.contains(_timeZone) ? _timeZone : _ianaTimeZones.first,
+                            items: _ianaTimeZones.map((tzName) => DropdownMenuItem(
+                              value: tzName,
+                              child: ConstrainedBox(
+                                constraints: const BoxConstraints(maxWidth: 300),
+                                child: Text(
+                                  _ianaTimeZoneLabels[tzName] ?? tzName,
+                                  style: GoogleFonts.montserrat(fontSize: 12, color: Colors.black),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            )).toList(),
+                            onChanged: (value) async {
+                              setState(() {
+                                _timeZone = value!;
+                              });
+                              final prefs = await SharedPreferences.getInstance();
+                              await prefs.setString('cached_time_zone', _timeZone);
+                            },
+                            decoration: InputDecoration(
+                              labelText: 'Time Zone',
+                              labelStyle: GoogleFonts.montserrat(fontSize: 12, color: Colors.grey[600]),
+                              prefixIcon: const Icon(Icons.access_time),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            ),
+                            style: GoogleFonts.montserrat(fontSize: 12, color: Colors.black),
+                            icon: const Icon(Icons.check, color: Colors.green, size: 20),
+                            dropdownColor: Colors.white,
+                            isExpanded: true,
+                          ),
+                        ),
+                      const SizedBox(height: 24),
+                    ],
                   ),
-                ],
+                ),
               ),
+            ),
+      ),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+          child: SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: ElevatedButton(
+              onPressed: _isLoading ? null : _completeSetup,
+              child: _isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : const Text(
+                      'Save Changes',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
             ),
           ),
         ),

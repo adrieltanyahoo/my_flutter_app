@@ -326,16 +326,10 @@ class _PermissionsPageState extends State<PermissionsPage> {
                 const SizedBox(height: 32),
                 // Continue Button
                 SizedBox(
-                  height: 50,
+                  width: double.infinity,
+                  height: 56,
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : _requestPermissions,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green[600],
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                    ),
                     child: _isLoading
                         ? const SizedBox(
                             width: 20,
@@ -345,12 +339,10 @@ class _PermissionsPageState extends State<PermissionsPage> {
                               valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                             ),
                           )
-                        : Text(
+                        : const Text(
                             'Continue',
-                            style: GoogleFonts.montserrat(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                   ),
                 ),

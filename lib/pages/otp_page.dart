@@ -190,16 +190,10 @@ class _OtpPageState extends State<OtpPage> {
                   ),
                 const SizedBox(height: 32),
                 SizedBox(
-                  height: 50,
+                  width: double.infinity,
+                  height: 56,
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : _verifyOtp,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green[600],
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                    ),
                     child: _isLoading
                         ? const SizedBox(
                             width: 20,
@@ -209,12 +203,10 @@ class _OtpPageState extends State<OtpPage> {
                               valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                             ),
                           )
-                        : Text(
+                        : const Text(
                             'Verify',
-                            style: GoogleFonts.montserrat(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                   ),
                 ),

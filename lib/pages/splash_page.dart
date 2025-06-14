@@ -222,16 +222,10 @@ class _SplashPageState extends State<SplashPage> {
                 const SizedBox(height: 24),
                 // Action Button
                 SizedBox(
-                  height: 50,
+                  width: double.infinity,
+                  height: 56,
                   child: ElevatedButton(
                     onPressed: _loading ? null : _continue,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green[600],
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                    ),
                     child: _loading 
                       ? const SizedBox(
                           width: 20,
@@ -241,13 +235,11 @@ class _SplashPageState extends State<SplashPage> {
                             valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                           ),
                         )
-                      : Text(
+                      : const Text(
                           'Agree and continue',
-                          style: GoogleFonts.montserrat(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                          ),
-                    ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                   ),
                 ),
                 const SizedBox(height: 24),

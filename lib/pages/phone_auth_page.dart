@@ -287,11 +287,14 @@ class _PhoneAuthPageState extends State<PhoneAuthPage> {
                   },
                 ),
                 const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: _isLoading ? null : _sendOTP,
-                  child: _isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text('Send Code'),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _sendOTP,
+                    child: _isLoading
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : const Text('Send Code', maxLines: 1, overflow: TextOverflow.ellipsis),
+                  ),
                 ),
                 if (_errorMessage.isNotEmpty) ...[
                   const SizedBox(height: 24),
