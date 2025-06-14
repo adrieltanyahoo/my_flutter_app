@@ -27,11 +27,55 @@ migrate_working_dir/
 **/doc/api/
 **/ios/Flutter/.last_build_id
 .dart_tool/
-.flutter-plugins
-.flutter-plugins-dependencies
-.pub-cache/
+.packages
 .pub/
-/build/
+build/
+
+# Android related
+android/.gradle/
+android/app/build/
+android/build/
+*.apk
+*.ap_*
+*.aab
+*.bin
+*.so
+*.dex
+*.jar
+*.keystore
+*.jks
+android/app/intermediates/
+android/app/outputs/
+
+# iOS related
+ios/Pods/
+ios/Runner.xcworkspace
+ios/build/
+
+# macOS related
+macos/Pods/
+macos/build/
+
+# Web related
+web/build/
+
+# Windows related
+windows/build/
+
+# Linux related
+linux/build/
+
+# Other
+*.log
+*.tmp
+*.swp
+*.DS_Store
+.idea/
+.vscode/
+
+# Hive boxes (optional, if you want to ignore local data)
+*.hive
+*.hive.lock
 
 # Symbolication related
 app.*.symbols
