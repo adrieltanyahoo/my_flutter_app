@@ -64,6 +64,12 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
             _birthday = DateTime.tryParse(profile.birthday!);
           }
         });
+        // Update global notifier with latest profile and avatar info
+        Provider.of<UserProfileNotifier>(context, listen: false).loadProfile(
+          avatarUrl: profile.avatarUrl,
+          displayName: profile.displayName,
+          localAvatarPath: (savedAvatarPath != null && File(savedAvatarPath).existsSync()) ? savedAvatarPath : null,
+        );
       }
     } catch (e, st) {
       if (mounted) {
@@ -131,11 +137,12 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
           avatarUrl: avatarUrl,
         );
         await UserProfileService.saveProfile(updatedProfile);
-        // Update notifier
+        // Update notifier with new avatar URL and local path
         if (mounted) {
           Provider.of<UserProfileNotifier>(context, listen: false).updateProfile(
             avatarUrl: avatarUrl,
             displayName: profile.displayName,
+            localAvatarPath: imagePath,
           );
         }
       }

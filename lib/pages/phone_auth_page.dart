@@ -53,6 +53,7 @@ class _PhoneAuthPageState extends State<PhoneAuthPage> {
   String _detectedCountryCode = 'US';
   String _e164PhoneNumber = '';
   String _timeZone = 'UTC';
+  String _lastCountryDialCode = '1'; // Default to US dial code
 
   @override
   void initState() {
@@ -64,7 +65,8 @@ class _PhoneAuthPageState extends State<PhoneAuthPage> {
     _remainingTime = 0;
     _canResendOTP = false;
     montserratStyle = GoogleFonts.montserrat();
-    
+    // Set initial dial code for detected country
+    _lastCountryDialCode = _getDialCodeForCountry(_detectedCountryCode);
     // Check for existing auth state
     _checkAuthState();
   }
@@ -76,9 +78,11 @@ class _PhoneAuthPageState extends State<PhoneAuthPage> {
     if (args != null) {
       initializePhoneNumber(args['country'] ?? 'US');
       _timeZone = args['timeZone'] ?? 'UTC';
+      // No need to set dial code here; will be set by IntlPhoneField
     } else {
       initializePhoneNumber('US');
       _timeZone = 'UTC';
+      _lastCountryDialCode = '1';
     }
   }
 
@@ -151,13 +155,26 @@ class _PhoneAuthPageState extends State<PhoneAuthPage> {
       _isLoading = true;
       _errorMessage = '';
     });
-    if (_e164PhoneNumber.isEmpty) {
+    // Always reconstruct the E.164 phone number from the latest input
+    print('[PhoneAuth] Raw input from controller: "${_phoneController.text}"');
+    String rawNumber = _phoneController.text.replaceAll(RegExp(r'\D'), '');
+    if (rawNumber.startsWith('0')) {
+      rawNumber = rawNumber.substring(1);
+    }
+    String dialCode = _lastCountryDialCode.replaceAll('+', '');
+    String e164 = '+$dialCode$rawNumber';
+    // E.164 validation: starts with +, followed by 10-15 digits
+    final e164Regex = RegExp(r'^\+[1-9]\d{9,14}$');
+    final isValid = e164Regex.hasMatch(e164);
+    print('[PhoneAuth] dialCode: $dialCode, rawNumber: $rawNumber, e164: $e164, isValid: $isValid');
+    if (e164.isEmpty || !isValid) {
       setState(() {
-        _errorMessage = 'Please enter your phone number.';
         _isLoading = false;
       });
+      _showSnackBar('Please enter a valid phone number.');
       return;
     }
+    _e164PhoneNumber = e164;
     try {
       if (kDebugMode) {
         await FirebaseAuth.instance.setSettings(appVerificationDisabledForTesting: true);
@@ -173,14 +190,14 @@ class _PhoneAuthPageState extends State<PhoneAuthPage> {
             _isLoading = false;
             _errorMessage = e.message ?? 'Verification failed. Please try again.';
           });
-          _showSnackBar('Verification failed: ${e.message}');
+          _showSnackBar('Verification failed: \\${e.message}');
         },
         codeSent: (String verificationId, int? resendToken) {
           setState(() {
             _isLoading = false;
             _errorMessage = '';
           });
-          _showSnackBar('OTP sent to $_e164PhoneNumber');
+          _showSnackBar('OTP sent to \\$_e164PhoneNumber');
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -202,7 +219,7 @@ class _PhoneAuthPageState extends State<PhoneAuthPage> {
         _isLoading = false;
         _errorMessage = e.toString();
       });
-      _showSnackBar('Error sending OTP: $e');
+      _showSnackBar('Error sending OTP: \\$e');
     }
   }
 
@@ -275,14 +292,25 @@ class _PhoneAuthPageState extends State<PhoneAuthPage> {
                   dropdownTextStyle: const TextStyle(fontSize: 16),
                   onChanged: (phone) {
                     // Always format to E.164: +<countryCode><number-without-leading-zero>
-                    String localNumber = phone.number.replaceAll(RegExp(r'\\D'), '');
+                    String localNumber = phone.number.replaceAll(RegExp(r'\D'), '');
                     if (localNumber.startsWith('0')) {
                       localNumber = localNumber.substring(1);
                     }
-                    String countryCode = phone.countryCode.replaceAll('+', '');
+                    String dialCode = phone.countryCode.replaceAll('+', '');
                     setState(() {
-                      _e164PhoneNumber = '+$countryCode$localNumber';
+                      _e164PhoneNumber = '+$dialCode$localNumber';
+                      _lastCountryDialCode = dialCode;
+                      // Clear error message when a valid number is entered
+                      if (phone.number.isNotEmpty) {
+                        _errorMessage = '';
+                      }
+                    });
+                  },
+                  onCountryChanged: (country) {
+                    // Clear error message when country changes
+                    setState(() {
                       _errorMessage = '';
+                      _lastCountryDialCode = country.dialCode;
                     });
                   },
                 ),
@@ -313,5 +341,21 @@ class _PhoneAuthPageState extends State<PhoneAuthPage> {
         ),
       ),
     );
+  }
+
+  // Helper to get dial code for a country code
+  String _getDialCodeForCountry(String countryCode) {
+    switch (countryCode.toUpperCase()) {
+      case 'MY':
+        return '60';
+      case 'SG':
+        return '65';
+      case 'US':
+        return '1';
+      case 'GB':
+        return '44';
+      default:
+        return '1';
+    }
   }
 } 

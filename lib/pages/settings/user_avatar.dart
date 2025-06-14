@@ -18,45 +18,51 @@ class UserAvatar extends StatelessWidget {
     this.radius = 50,
   });
 
-  ImageProvider<Object>? _getAvatarImage() {
-    if (localPath != null) {
-      return FileImage(File(localPath!));
-    } else if (networkUrl != null && networkUrl!.isNotEmpty) {
-      return CachedNetworkImageProvider(networkUrl!);
-    }
-    return null;
-  }
-
   @override
   Widget build(BuildContext context) {
     final notifier = Provider.of<UserProfileNotifier>(context);
     final String? effectiveNetworkUrl = networkUrl ?? notifier.avatarUrl;
-    final String effectiveInitials = initials.isNotEmpty ? initials : (notifier.displayName.isNotEmpty ? notifier.displayName.trim().split(' ').map((e) => e[0]).take(2).join().toUpperCase() : 'U');
-    // Prefer notifier's localAvatarPath, then localPath, then network
+    final String effectiveInitials = initials.isNotEmpty 
+        ? initials 
+        : (notifier.displayName.isNotEmpty 
+            ? notifier.displayName.trim().split(' ').map((e) => e[0]).take(2).join().toUpperCase() 
+            : 'U');
+    
+    // Prefer notifier's localAvatarPath, then localPath
     String? localPathToUse = notifier.localAvatarPath ?? localPath;
-    if (localPathToUse != null && !File(localPathToUse).existsSync()) {
-      localPathToUse = null;
+    
+    // Verify local file exists
+    if (localPathToUse != null) {
+      final file = File(localPathToUse);
+      if (!file.existsSync()) {
+        print('[UserAvatar] Local file does not exist: $localPathToUse');
+        localPathToUse = null;
+      }
     }
-    // Cache busting: append timestamp to URL if present
-    String? cacheBustedUrl = effectiveNetworkUrl;
-    if (effectiveNetworkUrl != null && effectiveNetworkUrl.isNotEmpty) {
-      final now = DateTime.now().millisecondsSinceEpoch;
-      cacheBustedUrl = effectiveNetworkUrl.contains('?')
-        ? '${effectiveNetworkUrl}&t=$now'
-        : '${effectiveNetworkUrl}?t=$now';
+
+    // Log the state for debugging
+    print('[UserAvatar] State:'
+        '\n  - Local path: ${localPathToUse ?? 'null'}'
+        '\n  - Network URL: ${effectiveNetworkUrl ?? 'null'}'
+        '\n  - Notifier local path: ${notifier.localAvatarPath ?? 'null'}'
+        '\n  - Notifier network URL: ${notifier.avatarUrl ?? 'null'}'
+        '\n  - Initials: $effectiveInitials');
+
+    // Determine the image provider
+    ImageProvider<Object>? imageProvider;
+    if (localPathToUse != null) {
+      imageProvider = FileImage(File(localPathToUse));
+    } else if (effectiveNetworkUrl != null && effectiveNetworkUrl.isNotEmpty) {
+      imageProvider = CachedNetworkImageProvider(effectiveNetworkUrl);
+    } else {
+      imageProvider = null;
     }
-    print('[UserAvatar] localPath: '
-        '\u001b[33m$localPathToUse\u001b[0m, networkUrl: '
-        '\u001b[36m$cacheBustedUrl\u001b[0m');
+
     return CircleAvatar(
       radius: radius,
       backgroundColor: Colors.grey[200],
-      backgroundImage: (localPathToUse != null)
-        ? FileImage(File(localPathToUse)) as ImageProvider<Object>
-        : (cacheBustedUrl != null && cacheBustedUrl.isNotEmpty
-            ? CachedNetworkImageProvider(cacheBustedUrl) as ImageProvider<Object>
-            : null),
-      child: (localPathToUse == null && (cacheBustedUrl == null || cacheBustedUrl.isEmpty))
+      backgroundImage: imageProvider,
+      child: (imageProvider == null)
           ? Text(
               effectiveInitials,
               style: TextStyle(fontSize: radius * 0.64, color: Colors.grey[600]),

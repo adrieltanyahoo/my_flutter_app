@@ -7,6 +7,8 @@ import '../pages/settings/user_avatar.dart';
 import '../services/user_profile_service.dart';
 import 'package:provider/provider.dart';
 import '../services/user_profile_notifier.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:io';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -38,6 +40,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _avatarUrl = profile.avatarUrl;
           _displayName = profile.displayName;
         });
+        // Load local avatar path from SharedPreferences
+        final prefs = await SharedPreferences.getInstance();
+        final savedAvatarPath = prefs.getString('local_avatar_path');
+        // Update global notifier with latest profile and avatar info
+        Provider.of<UserProfileNotifier>(context, listen: false).loadProfile(
+          avatarUrl: profile.avatarUrl,
+          displayName: profile.displayName,
+          localAvatarPath: (savedAvatarPath != null && File(savedAvatarPath).existsSync()) ? savedAvatarPath : null,
+        );
       }
     } catch (e) {
       print('❌ Error loading profile: $e');

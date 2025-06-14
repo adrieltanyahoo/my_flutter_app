@@ -33,6 +33,7 @@ class AccountsSettingsPage extends StatelessWidget {
                   child: Column(
                     children: [
                       UserAvatar(
+                        localPath: user.localAvatarPath,
                         networkUrl: user.avatarUrl,
                         initials: user.displayName.isNotEmpty
                             ? user.displayName.trim().split(' ').map((e) => e[0]).take(2).join().toUpperCase()

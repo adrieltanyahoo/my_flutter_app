@@ -12,11 +12,36 @@ import 'pages/messages_page.dart';
 import 'pages/settings_routes.dart';
 import 'pages/settings/change_phone_number_page.dart';
 import 'pages/settings/delete_account_page.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'models/calendar_event.dart';
+import 'providers/calendar_provider.dart';
+import 'pages/calendar/calendar_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
-  runApp(const MyApp());
+
+  // Initialize Hive
+  await Hive.initFlutter();
+  
+  // Register adapters
+  Hive.registerAdapter(CalendarEventAdapter());
+  Hive.registerAdapter(EventTypeAdapter());
+  Hive.registerAdapter(ViewTypeAdapter());
+  
+  // Open the events box
+  final eventsBox = await Hive.openBox<CalendarEvent>('events');
+
+  runApp(
+    ProviderScope(
+      overrides: [
+        // Override the events box provider with the opened box
+        eventsBoxProvider.overrideWithValue(eventsBox),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {

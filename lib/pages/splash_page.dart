@@ -165,7 +165,7 @@ class _SplashPageState extends State<SplashPage> {
             height: 1.5,
           ),
           recognizer: TapGestureRecognizer()
-            ..onTap = () => Navigator.pushNamed(context, '/terms-privacy'),
+            ..onTap = () => Navigator.pushNamed(context, '/terms-privacy', arguments: {'tab': 'privacy'}),
         ),
         const TextSpan(text: '. Tap "Agree and continue" to accept the '),
         TextSpan(
@@ -176,7 +176,7 @@ class _SplashPageState extends State<SplashPage> {
             height: 1.5,
           ),
           recognizer: TapGestureRecognizer()
-            ..onTap = () => Navigator.pushNamed(context, '/terms-privacy'),
+            ..onTap = () => Navigator.pushNamed(context, '/terms-privacy', arguments: {'tab': 'terms'}),
         ),
         const TextSpan(text: '.'),
       ],

@@ -286,11 +286,12 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
           avatarUrl: avatarUrl,
         );
         await UserProfileService.saveProfile(updatedProfile);
-        // Update notifier
+        // Update notifier with new avatar URL and local path
         if (mounted) {
           Provider.of<UserProfileNotifier>(context, listen: false).updateProfile(
             avatarUrl: avatarUrl,
             displayName: profile.displayName,
+            localAvatarPath: imagePath,
           );
         }
       }
@@ -331,6 +332,7 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
         displayName: _nameController.text.trim(),
       );
       if (mounted) {
+        await _syncAvatarStateBeforeNavigation();
         Navigator.pushReplacementNamed(context, '/messages');
       }
     } catch (e, st) {
@@ -343,6 +345,19 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
         );
       }
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _syncAvatarStateBeforeNavigation() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedAvatarPath = prefs.getString('local_avatar_path');
+    final profile = await UserProfileService.fetchProfile();
+    if (profile != null) {
+      Provider.of<UserProfileNotifier>(context, listen: false).loadProfile(
+        avatarUrl: profile.avatarUrl,
+        displayName: profile.displayName,
+        localAvatarPath: (savedAvatarPath != null && File(savedAvatarPath).existsSync()) ? savedAvatarPath : null,
+      );
     }
   }
 

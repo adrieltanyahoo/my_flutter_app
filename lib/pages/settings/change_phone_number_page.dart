@@ -133,6 +133,7 @@ class _ChangePhoneNumberPageState extends State<ChangePhoneNumberPage> {
             border: OutlineInputBorder(),
             hintText: 'Enter your phone number',
             isDense: true,
+            errorText: _errorText.isEmpty ? null : _errorText,
           ),
           style: Theme.of(context).textTheme.bodyLarge,
           onChanged: (phone) {
@@ -144,15 +145,19 @@ class _ChangePhoneNumberPageState extends State<ChangePhoneNumberPage> {
               }
               String countryCode = phone.countryCode.replaceAll('+', '');
               _newPhone = '+$countryCode$localNumber';
+              // Clear error text when a valid number is entered
+              if (phone.number.isNotEmpty && phone.number != _currentPhone) {
+                _errorText = '';
+              }
+            });
+          },
+          onCountryChanged: (country) {
+            // Clear error text when country changes
+            setState(() {
               _errorText = '';
             });
           },
         ),
-        if (_errorText.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: 4, left: 4),
-            child: Text(_errorText, style: TextStyle(color: Colors.red, fontSize: 14)),
-          ),
         const SizedBox(height: 16),
         // Visual step indicator: phone -> arrow -> phone
         Row(
